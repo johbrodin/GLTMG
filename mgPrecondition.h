@@ -83,6 +83,9 @@ void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const
         r -= src;
 
         std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
+
+        //TTTT
+
         /*% initial guess
         x = zeros(size(b));
         r = b-A*x;                % residual
