@@ -66,7 +66,6 @@ private:
   void inputFile(unsigned int size1, unsigned int size2,std::string filename);
   void inputFile_supplied(unsigned int, unsigned int,std::string,SparsityPattern &sp, SparseMatrix<double> &sm);
   void writeToFile(SparseMatrix<double> &matrix,std::string filename);
-  void canITouchThis(SparseMatrix<double> &M, SparsityPattern &sp);
 
   Triangulation<2>     triangulation;
   FE_Q<2>              fe;
@@ -268,14 +267,16 @@ void Step3::writeToFile(SparseMatrix<double> &matrix,std::string filename){
   matrix.print_formatted(out_system,3,true,0," ",1); 
 }
 
-/* Just a method to test the reference operator & */
-void Step3::canITouchThis(SparseMatrix<double> &M,SparsityPattern &sp){
-  inputFile_supplied(3,3,"bb.txt",sp,M);
+
+void makeMatrix(SparseMatrix<double> &M){
+  //M();
+  //SparsityPattern sp = M.get_sparsity_pattern();
 }
 
-// This method runs our tests !
+
+// This public method runs our tests !
 void Step3::test_run(){
-  /* This writes the values from "bb.txt" to SM*/
+  /* This writes the values from "bb.txt" to SM
   SparsityPattern      SP;
   SparseMatrix<double> A;
   Vector<double> b;
@@ -284,6 +285,11 @@ void Step3::test_run(){
   b = 5;
   inputFile_supplied(size,size,"bb.txt",SP,A);
   mgPrecondition mgTest(A,b);
+*/
+  SparseMatrix<double> M();
+  SparsityPattern sp = M.get_sparsity_pattern();
+  inputFile_supplied(3,3,"bb.txt",sp,M);
+  //makeMatrix(M);
 }
 
 void Step3::testProl(){
@@ -307,6 +313,7 @@ void Step3::testProl(){
 
 /* Pseudo Code for running the tests ! */
 // I should put some methods not as mgPrecond classes! ! !
+// This method belongs in mgPrecond! 
 void Step3::mgGLT_init(){
   // for j=2:6 levels
   SparsityPattern spAFin;
@@ -325,9 +332,6 @@ void Step3::mgGLT_init(){
   Vector<int> nu = unique(NN);
   Vector<int> reps = accumVector(NN);
   double n = vectorProd(reps,nu);
-
-
-
 }
 
 /*========================================================================================================================*/
@@ -338,7 +342,8 @@ int main ()
   //Step3 laplace_problem;
   //laplace_problem.run ();
   Step3 test;
-  test.run();
+  //test.run();
+  test.test_run();
   //tests.testProl();  
 
   return 0;
