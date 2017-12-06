@@ -270,23 +270,23 @@ void Step3::writeToFile(SparseMatrix<double> &matrix,std::string filename){
 void Step3::test_run(){
 
     // for j=2:6 levels
-  SparsityPattern spAFin;
-  SparseMatrix<double> AFin;
+  SparsityPattern spAFin,spA,spM;
+  SparseMatrix<double> AFin,A,M;
   int size = 3;
   inputFile_supplied(size,size,"bb.txt",spAFin,AFin);
   int N = size; // N could be an int, AFin quadratic.
   Vector<double> y;
   y.reinit(N);
   y = 1;
-  Vector<double> b;
-  AFin.vmult(b,y);
-
+  Vector<double> b(N);
+  AFin.vmult(b,y);  // Have to reinit b...
   mgPrecondition mg(AFin,b);
-  SparsityPattern sp;
-  SparseMatrix<double> M;
-  mg.transp(AFin,sp,M);
-  AFin.print_formatted(std::cout,1,true,0," ",1);
-  M.print_formatted(std::cout,1,true,0," ",1);
+  inputFile_supplied(size,size,"A.txt",spA,A);
+  spM.reinit(N,N);
+  M.reinit(spM);
+  AFin.mmult(M,A,Vector<double>(),true);
+
+
   
 }
 /* Pseudo Code for running the tests ! */
