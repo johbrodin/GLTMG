@@ -61,18 +61,41 @@ private:
 	const SmartPointer<const Vector<double>> rhs;
 	SmartPointer<Vector<double>> test_vector;
 	SmartPointer<SparseMatrix<double>> test_matrix;
+        double tol;
 };
 
 mgPrecondition::mgPrecondition(const SparseMatrix<double> &sparse_matrix,
 	const Vector<double> &vector):
 system_matrix(&sparse_matrix),
 rhs(&vector)
-{}
+{
+    tol = 0.00000001; //1e-8;
+}
 
 // This will be the GLTmg main function!
 void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const {
-	dst = src;
-	std::cout<<" - - - - - - Ding - - - - - - -"<<std::endl;
+        //dst = src;
+
+        dst=0;
+        Vector<double> r(src.size());
+        system_matrix->vmult(r,src);
+        r -= src;
+
+        std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
+        /*% initial guess
+        x = zeros(size(b));
+        r = b-A*x;                % residual
+        tol = tol*norm(b);
+
+        i = 1;
+        while norm(r) > tol && i <= nit
+           % one step of MG-GLT
+           x = mgGLT_setup(A, BB, PP, b, x, gamma, presmooth, postsmooth, n, 1);
+           % new residual
+           r = b-A*x;
+           i = i+1;
+        end
+        iter = i-1;*/
 }
 
 /* ===================== The functions needed to perform GLTmg ==============================================================*/
@@ -363,7 +386,7 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 	kronProd(smH,smH,spH2,H);
 	// P = smP*H'; P = (1/n)*P
 	SparseMatrix<double> P;
-	Tmmult()
+        //Tmmult()
 	
 }
 

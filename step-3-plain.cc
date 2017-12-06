@@ -287,8 +287,8 @@ void Step3::test_run(){
   mgPrecondition mgTest(A,b);
 */
   SparseMatrix<double> M();
-  SparsityPattern sp = M.get_sparsity_pattern();
-  inputFile_supplied(3,3,"bb.txt",sp,M);
+  //SparsityPattern sp = M.get_sparsity_pattern();
+  //inputFile_supplied(3,3,"bb.txt",sp,M);
   //makeMatrix(M);
 }
 
