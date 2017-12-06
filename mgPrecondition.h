@@ -361,7 +361,9 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 	SparsityPattern spH2;
 	SparseMatrix<double> H;
 	kronProd(smH,smH,spH2,H);
-	H.print_formatted(std::cout,1,true,0," ",1);
+	// P = smP*H'; P = (1/n)*P
+	SparseMatrix<double> P;
+	Tmmult()
 	
 }
 
