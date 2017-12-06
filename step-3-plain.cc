@@ -54,8 +54,7 @@ public:
   void run ();
   // Added Public methods
   void test_run(); // Here we run our tests!
-  void testProl();
-  void mgGLT_init();
+  void mgGLT_init(); // Put this in mgPrecondition.h
 private:
   void make_grid ();
   void setup_system ();
@@ -267,71 +266,40 @@ void Step3::writeToFile(SparseMatrix<double> &matrix,std::string filename){
   matrix.print_formatted(out_system,3,true,0," ",1); 
 }
 
-
-void makeMatrix(SparseMatrix<double> &M){
-  //M();
-  //SparsityPattern sp = M.get_sparsity_pattern();
-}
-
-
 // This public method runs our tests !
 void Step3::test_run(){
-  /* This writes the values from "bb.txt" to SM
-  SparsityPattern      SP;
-  SparseMatrix<double> A;
-  Vector<double> b;
-  int size = 3;
-  b.reinit(size);
-  b = 5;
-  inputFile_supplied(size,size,"bb.txt",SP,A);
-  mgPrecondition mgTest(A,b);
-*/
-  SparseMatrix<double> M();
-  //SparsityPattern sp = M.get_sparsity_pattern();
-  //inputFile_supplied(3,3,"bb.txt",sp,M);
-  //makeMatrix(M);
-}
 
-void Step3::testProl(){
-  SparsityPattern      SP;
-  SparseMatrix<double> sys;
-  Vector<double> rhs;
-  int size = 3;
-  rhs.reinit(size);
-  rhs = 1;
-  inputFile_supplied(size,size,"bb.txt",SP,sys);
-  mgPrecondition mgTest(sys,rhs); // mgCreation
-  SparsityPattern      spP;
-  SparseMatrix<double> smP;
-  double n = 6;
-  mgTest.prol(n,spP,smP);
-  int buzz = 20;
-  foo(buzz);
-  std::cout<<" - - - - -: "<<buzz<<std::endl;
-
-}
-
-/* Pseudo Code for running the tests ! */
-// I should put some methods not as mgPrecond classes! ! !
-// This method belongs in mgPrecond! 
-void Step3::mgGLT_init(){
-  // for j=2:6 levels
-  SparsityPattern spAFin;
-  SparseMatrix<double> AFin;
+    // for j=2:6 levels
+  SparsityPattern spAFin,spA,spM;
+  SparseMatrix<double> AFin,A,M;
   int size = 3;
   inputFile_supplied(size,size,"bb.txt",spAFin,AFin);
   int N = size; // N could be an int, AFin quadratic.
   Vector<double> y;
   y.reinit(N);
   y = 1;
-  Vector<double> b;
-  AFin.vmult(b,y);
+  Vector<double> b(N);
+  AFin.vmult(b,y);  // Have to reinit b...
+  mgPrecondition mg(AFin,b);
+  inputFile_supplied(size,size,"A.txt",spA,A);
+  spM.reinit(N,N);
+  M.reinit(spM);
+  AFin.mmult(M,A,Vector<double>(),true);
+
 
   
+}
+/* Pseudo Code for running the tests ! */
+// I should put some methods not as mgPrecond classes! ! !
+// This method belongs in mgPrecond! 
+void Step3::mgGLT_init(){
+
+  /* Put the mgGLT_init in mgPrecondition.h
   Vector<int> NN = factor(N);
   Vector<int> nu = unique(NN);
   Vector<int> reps = accumVector(NN);
   double n = vectorProd(reps,nu);
+  */
 }
 
 /*========================================================================================================================*/
@@ -344,7 +312,6 @@ int main ()
   Step3 test;
   //test.run();
   test.test_run();
-  //tests.testProl();  
 
   return 0;
 }
