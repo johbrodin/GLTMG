@@ -429,7 +429,7 @@ void mgPrecondition::sayHi(){
 }
 void mgPrecondition::printMatrix(){
 	//Why do we use arrow here? -> = (*).
-	system_matrix->print_formatted(std::cout,1,true,0," ",1);
+        system_matrix->print_formatted(std::cout,1,true,0," ",1);
 }
 void mgPrecondition::printVector(){
 	rhs->print(std::cout,1,true,true);	

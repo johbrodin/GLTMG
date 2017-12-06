@@ -282,9 +282,12 @@ void Step3::test_run(){
   AFin.vmult(b,y);  // Have to reinit b...
   mgPrecondition mg(AFin,b);
   inputFile_supplied(size,size,"A.txt",spA,A);
-  spM.reinit(N,N);
+  DynamicSparsityPattern dspM(0);
+  //dspM.add(1,1);
+  spM.copy_from(dspM);
   M.reinit(spM);
   AFin.mmult(M,A,Vector<double>(),true);
+  M.print_formatted(std::cout,1,true,0," ",1);
 
 
   
