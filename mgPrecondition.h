@@ -42,16 +42,17 @@ public:
 	void presmooth(Vector<double> &vicky);
 	void postsmooth(Vector<double> &vicky);
 	/* These method are used outside of this class */
-	//Vector<int> factor(const int N);
-	//Vector<int> unique(Vector<int> factor);
-	//Vector<int> accumVector(Vector<int> v);
-	//double vectorProd(Vector<int> v1, Vector<int> v2);
+	Vector<int> factor(const int N);
+	Vector<int> unique(Vector<int> factor);
+	Vector<int> accumVector(Vector<int> v);
+	double vectorProd(Vector<int> v1, Vector<int> v2);
 	void prol(double n, SparsityPattern &spP, SparseMatrix<double> &smP); // Change the return type ;)
 	void kronProd(SparseMatrix<double> &A, SparseMatrix<double> &B,
 		SparsityPattern &sp, SparseMatrix <double> &M);
 	void kronProd_vector(Vector<double> &A, Vector<double> &B,
 		SparsityPattern &sp, SparseMatrix <double> &M);
 	void spdiags(double n,SparsityPattern &spaa, SparseMatrix <double> &aa);
+	void transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M);
 	// Help methods
 	void printMatrix();
 	void printVector();
@@ -93,7 +94,7 @@ void mgPrecondition::postsmooth(Vector<double> &vicky){
 
 /* Return a vector containing the primenumbers of N 
 	Might Implement Sieve at a later point 		*/
-Vector<int> factor(int N){
+Vector<int> mgPrecondition::factor(int N){
 	int index = 0;
 	const int maxSize = 10;
 	int factors[maxSize];
@@ -129,7 +130,7 @@ Vector<int> factor(int N){
 }
 
 /* removes extra numbers from factors */
-Vector<int> unique(Vector<int> factor){
+Vector<int> mgPrecondition::unique(Vector<int> factor){
 	if(factor.size()==1){
 		return factor;
 	} else{
@@ -162,7 +163,7 @@ Vector<int> unique(Vector<int> factor){
 	Note! The GLTmg has *ugh* Matlab indexing !
 	Returnes # of Values of pos int on index i !
 */
-Vector<int> accumVector(Vector<int> v){
+Vector<int> mgPrecondition::accumVector(Vector<int> v){
 	Vector<int>::iterator iter = v.begin();
 	Vector<int>::iterator ender = v.end();
 	Vector<int> res;
@@ -177,7 +178,7 @@ Vector<int> accumVector(Vector<int> v){
 
 /* This method performs the prod(nu.^(resp(nu)./3)) 
 	action given in the GLTmg*/
-double vectorProd(Vector<int> reps, Vector<int> nu){
+double mgPrecondition::vectorProd(Vector<int> reps, Vector<int> nu){
 	double n = 1;
 	// the reps(nu) action
 	Vector<double> repsNu;	//Used for development
@@ -288,6 +289,32 @@ void mgPrecondition::kronProd_vector(Vector<double> &A, Vector<double> &B,
 	}
 }
 
+/* 	Here we make a transpose of matrix A which we assume to be quadratic */
+void mgPrecondition::transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M){
+	const int size = A.m();
+	DynamicSparsityPattern dsp(size,size);
+	SparseMatrix<double>::iterator itA = A.begin();
+	SparseMatrix<double>::iterator endA = A.end();
+	double value;
+	int rowM=0,colM=0;
+	for(;itA!=endA;itA++){
+		rowM=itA->column();
+		colM=itA->row();
+		dsp.add(rowM,colM);
+	}
+	dsp.compress();
+	sp.copy_from(dsp);
+	M.reinit(sp);
+	itA = A.begin();
+	for(;itA!=endA;itA++){
+		rowM=itA->column();
+		colM=itA->row();
+		value = itA->value();
+		M.add(rowM,colM,value);
+	}
+}
+
+
 /* Here we implement the prol([2 1 1],[0 -1 1],n)
 	dd = [0 -1 1]
 	PP = [2 1 1]
@@ -363,8 +390,7 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 	kronProd(smH,smH,spH2,H);
 	// P = smP*H'; P = (1/n)*P
 	SparseMatrix<double> P;
-	Tmmult()
-	
+	//mmult()
 }
 
 
