@@ -323,7 +323,7 @@ void mgPrecondition::transp(SparseMatrix<double> &A, SparsityPattern &sp, Sparse
 	SparseMatrix<double>::iterator endA = A.end();
 	double value;
 	int rowM=0,colM=0;
-	for(;itA!=endA;itA++){
+        for(;itA!=endA;++itA){
 		rowM=itA->column();
 		colM=itA->row();
 		dsp.add(rowM,colM);
@@ -386,17 +386,21 @@ void mgPrecondition::spdiags(double n,SparsityPattern &spaa, SparseMatrix <doubl
 	(1/n)*prol([2 1 1], [0 -1 1],n)
 	given in the gltmg_test matlab code 
 	*/
-void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &smP){
+void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &P){
+	// aa = spdiags(kron(PP,ones),dd,n,n)
 	SparsityPattern spaa;
 	SparseMatrix<double> aa;
 	spdiags(n,spaa,aa);
+	// smP = kron(aa,kron(aa,aa))
 	SparsityPattern spTemp;
 	SparseMatrix<double> smTemp;
 	kronProd(aa,aa,spTemp,smTemp);
-	kronProd(aa,smTemp,spP,smP);
-	/* Create H = speye(n) then remove every other row
-		H = H(1:2:n,:)*/
-	SparsityPattern spH;
+	SparseMatrix<double> smP;
+	SparsityPattern spP2;
+	kronProd(aa,smTemp,spP2,smP);
+	/* Create smH = speye(n) then remove every other row
+		smH = smH(1:2:n,:)*/
+	SparsityPattern spH2;
 	SparseMatrix<double> smH;
 	int N1 = (int)n;
 	int N2 = N1/2+N1%2;
@@ -405,18 +409,27 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 		dspH.add(i,2*i);
 	}
 	dspH.compress();
-	spH.copy_from(dspH);
-	smH.reinit(spH);
+	spH2.copy_from(dspH);
+	smH.reinit(spH2);
 	for(int i=0; i<N2; i++){
 		smH.add(i,2*i,1);
 	}
-	// H = kron(H,H)
-	SparsityPattern spH2;
+	smH.print_formatted(std::cout,1,true,0," ",1);
+	// H = kron(smH,smH)
+	SparsityPattern spH;
 	SparseMatrix<double> H;
-	kronProd(smH,smH,spH2,H);
+	kronProd(smH,smH,spH,H);
 	// P = smP*H'; P = (1/n)*P
-	SparseMatrix<double> P;
-        //mmult()
+	std::cout<<" - - - -- - - "<<std::endl;
+	H.print_formatted(std::cout,1,true,0," ",1);
+	SparseMatrix<double> transpH;
+	SparsityPattern spTranspH;
+	transp(H,spTranspH,transpH);
+	DynamicSparsityPattern dspP(0);
+	spP.copy_from(dspP);
+	P.reinit(spP);
+	smP.mmult(P,transpH,Vector<double>(),true);
+
 }
 
 
