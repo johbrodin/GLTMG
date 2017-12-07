@@ -83,6 +83,9 @@ void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const
         r -= src;
 
         std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
+
+        //TTTT
+
         /*% initial guess
         x = zeros(size(b));
         r = b-A*x;                % residual
@@ -426,7 +429,7 @@ void mgPrecondition::sayHi(){
 }
 void mgPrecondition::printMatrix(){
 	//Why do we use arrow here? -> = (*).
-	system_matrix->print_formatted(std::cout,1,true,0," ",1);
+        system_matrix->print_formatted(std::cout,1,true,0," ",1);
 }
 void mgPrecondition::printVector(){
 	rhs->print(std::cout,1,true,true);	
