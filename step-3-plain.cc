@@ -38,6 +38,7 @@
 #include <deal.II/numerics/data_out.h>
 #include <fstream>
 #include <iostream>
+#include <deal.II/base/tensor.h> // Tensor
 #include <vector> // This is for the std::vector
 //#include <deal.II/multigrid/mg_matrix.h> // For the mg::Matrix ;)
 
@@ -282,17 +283,19 @@ void Step3::test_run(){
   Vector<double> b(N);
   AFin.vmult(b,y);  // Have to reinit b...
   mgPrecondition mg(AFin,b);
-  inputFile_supplied(size,size,"A.txt",spA,A);
-  DynamicSparsityPattern dspM(0);
-  //dspM.add(1,1);
-  spM.copy_from(dspM);
-  M.reinit(spM);
-  AFin.mmult(M,A,Vector<double>(),true);
-  M.print_formatted(std::cout,1,true,0," ",1);
+  inputFile_supplied(7,7,"A.txt",spA,A);
+  A.print_formatted(std::cout,1,true,0," ",1);
+  SparsityPattern spFoo;
+  SparseMatrix<double> foo;
+  //mg.transp(A,spFoo,foo);
+  mg.prol(7,spFoo,foo);
+  std::cout<<std::endl<<std::endl<<std::endl;
+  //foo.print_formatted(std::cout,1,true,0," ",1);
+  //AFin.print_formatted(std::cout,1,true,0," ",1);
 
 
-  
 }
+
 /* Pseudo Code for running the tests ! */
 // I should put some methods not as mgPrecond classes! ! !
 // This method belongs in mgPrecond! 
@@ -327,6 +330,24 @@ int main ()
 }
 /* - - - - - -  The code-dump - - - - - - - - - */
 
+/* This is how you play with tensors*/
+/*
+  std::cout<<" - - - - - - - - - - - - - - - "<<std::endl;
+  double foo[4] = {0, 1, 2, 3};
+  Tensor<2,2,double> ten();
+  int 
+  std::cout<<" ten: "<<ten.memory_consumption()<<std::endl;
+*/
+
+/* This is how to initialize a matrix */
+/*
+  DynamicSparsityPattern dspM(0);  // Must initialize before using
+  //dspM.add(1,1);
+  spM.copy_from(dspM);
+  M.reinit(spM);
+  AFin.mmult(M,A,Vector<double>(),true);
+  M.print_formatted(std::cout,1,true,0," ",1);
+*/
 /* - - - - - Here I test BB and PP storages - - - - - - -*/
   /* Not sure if this is sound memory handling! ! ! 
       But this works just fine . . . . 
