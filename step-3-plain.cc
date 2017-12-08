@@ -56,7 +56,6 @@ public:
   // Added Public methods
   void test_run(); // Here we run our tests!
   void test_outer_product(); //Test outer product with tensors!
-  void mgGLT_init(); // Put this in mgPrecondition.h
 private:
   void make_grid ();
   void setup_system ();
@@ -283,26 +282,8 @@ void Step3::test_run(){
   Vector<double> b(N);
   AFin.vmult(b,y);  // Have to reinit b...
   mgPrecondition mg(AFin,b);
-  inputFile_supplied(3,3,"A.txt",spA,A);
-  //A.print_formatted(std::cout,1,true,0," ",1);
-  SparsityPattern spFoo;
-  SparseMatrix<double> foo;
-  std::cout<<" ======================== "<<std::endl;
-  double n = 5;
-  mg.prol(n,spFoo,foo);
-}
+  //foo.reinit(2);
 
-/* Pseudo Code for running the tests ! */
-// I should put some methods not as mgPrecond classes! ! !
-// This method belongs in mgPrecond! 
-void Step3::mgGLT_init(){
-
-  /* Put the mgGLT_init in mgPrecondition.h
-  Vector<int> NN = factor(N);
-  Vector<int> nu = unique(NN);
-  Vector<int> reps = accumVector(NN);
-  double n = vectorProd(reps,nu);
-  */
 }
 
 void Step3::test_outer_product(){
@@ -325,6 +306,17 @@ int main ()
   return 0;
 }
 /* - - - - - -  The code-dump - - - - - - - - - */
+
+/* This is a test of the prol method! in mgPrecondtion.h
+
+  inputFile_supplied(3,3,"A.txt",spA,A);
+  //A.print_formatted(std::cout,1,true,0," ",1);
+  SparsityPattern spFoo;
+  SparseMatrix<double> foo;
+  std::cout<<" ======================== "<<std::endl;
+  double n = 5;
+  mg.prol(n,spFoo,foo);
+*/
 
 /* This is how you play with tensors*/
 /*

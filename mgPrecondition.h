@@ -28,6 +28,7 @@
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/identity_matrix.h> // IdentityMatrix inclusion :)
+#include <vector> // This is for the std::vector
 
 DEAL_II_NAMESPACE_OPEN
 //using namespace mgPrecondition;
@@ -52,6 +53,7 @@ public:
 		SparsityPattern &sp, SparseMatrix <double> &M);
 	void spdiags(double n,SparsityPattern &spaa, SparseMatrix <double> &aa);
 	void transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M);
+	void mgGLT_init();
 	// Help methods
 	void printMatrix();
 	void printVector();
@@ -61,24 +63,47 @@ private:
 	const SmartPointer<const Vector<double>> rhs;
 	SmartPointer<Vector<double>> test_vector;
 	SmartPointer<SparseMatrix<double>> test_matrix;
-        double tol;
-        double max_iterations;
+	double tol;
+	double max_iterations;
         void mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const; //const to be able to be called by the const vmult function
         void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
         const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
         const SmartPointer<Vector<SparseMatrix<double>>> PP;
-};
+        // Alternative BB and PP
+        std::vector<SparseMatrix<double>*> stdBB;
+    };
 
-mgPrecondition::mgPrecondition(const SparseMatrix<double> &sparse_matrix,
-	const Vector<double> &vector):
-system_matrix(&sparse_matrix),
+    mgPrecondition::mgPrecondition(const SparseMatrix<double> &sparse_matrix,
+    	const Vector<double> &vector):
+    system_matrix(&sparse_matrix),
 rhs(&vector)//,
 //  BB(&BB),PP(&PP)
 {
     tol = 0.00000001; //1e-8;
     max_iterations = 3; //number of MG cycles
-    int n=3;
+    //int n=3; Should use some other variable than "n"
   //  Vector<double>(BB->)(n); //TODO BB, PP create here of r
+
+    // Hreinn
+    // AFin quadratic, right!?
+    int N = system_matrix->m();
+    Vector<int> NN = factor(N);
+    Vector<int> nu = unique(NN);
+    Vector<int> reps = accumVector(NN);
+    double n = vectorProd(reps,nu);
+    int level = 0;
+    //stdBB.push_back(system_matrix);
+    /* Pseudo code *
+    vicky.push_back(&A); vicky.push_back(&B);
+	BB{i} = AFin;
+	PP{i} = 0;
+    double n1 = n;
+	while(n1>=3){
+		SparsityPattern spP;
+  		SparseMatrix<double> P;
+  		prol(n1,spP,P);
+	}
+    */
 }
 
 // This will be the GLTmg main function!
@@ -95,7 +120,7 @@ void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const
     int level = 0;
     while (r.l2_norm() > tol_res && level <= max_iterations)
     {
-        mgRecursion(dst,src,level);
+    	mgRecursion(dst,src,level);
 
     }
 
@@ -349,7 +374,7 @@ void mgPrecondition::transp(SparseMatrix<double> &A, SparsityPattern &sp, Sparse
 	SparseMatrix<double>::iterator endA = A.end();
 	double value;
 	int rowM=0,colM=0;
-        for(;itA!=endA;++itA){
+	for(;itA!=endA;++itA){
 		rowM=itA->column();
 		colM=itA->row();
 		dsp.add(rowM,colM);
@@ -464,6 +489,12 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 	P*=(1/n);
 
 }
+
+void mgPrecondition::mgGLT_init(){
+
+}
+
+
 /*==========================================================================================================================*/
 
 /* Test/Help functions! */
@@ -473,7 +504,7 @@ void mgPrecondition::sayHi(){
 }
 void mgPrecondition::printMatrix(){
 	//Why do we use arrow here? -> = (*).
-        system_matrix->print_formatted(std::cout,1,true,0," ",1);
+	system_matrix->print_formatted(std::cout,1,true,0," ",1);
 }
 void mgPrecondition::printVector(){
 	rhs->print(std::cout,1,true,true);	
