@@ -315,10 +315,11 @@ void mgPrecondition::kronProd_vector(Vector<double> &A, Vector<double> &B,
 	}
 }
 
-/* 	Here we make a transpose of matrix A which we assume to be quadratic */
+/* 	Here we make a transpose of matrix A which can be any type of a matrix  */
 void mgPrecondition::transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M){
-	const int size = A.m();
-	DynamicSparsityPattern dsp(size,size);
+	const int n = A.m();
+	const int m = A.n();
+	DynamicSparsityPattern dsp(m,n);
 	SparseMatrix<double>::iterator itA = A.begin();
 	SparseMatrix<double>::iterator endA = A.end();
 	double value;
