@@ -287,39 +287,9 @@ void Step3::test_run(){
   //A.print_formatted(std::cout,1,true,0," ",1);
   SparsityPattern spFoo;
   SparseMatrix<double> foo;
-  std::cout<<std::endl<<std::endl<<std::endl;
-  
-  double n = 3;
-  /* Test transp! */
-  SparsityPattern spH2;
-  SparseMatrix<double> smH;
-  int N1 = (int)n;
-  int N2 = N1/2+N1%2;
-  DynamicSparsityPattern dspH(N2,N1);
-  for(int i=0; i<N2; i++){
-    dspH.add(i,2*i);
-  }
-  dspH.compress();
-  spH2.copy_from(dspH);
-  smH.reinit(spH2);
-  for(int i=0; i<N2; i++){
-    smH.add(i,2*i,1);
-  }
-  smH.print_formatted(std::cout,1,true,0," ",1);
-  // H = kron(smH,smH)
-  SparsityPattern spH;
-  SparseMatrix<double> H;
-  mg.kronProd(smH,smH,spH,H);
-  // P = smP*H'; P = (1/n)*P
-  std::cout<<" - - - -- - - "<<std::endl;
-  H.print_formatted(std::cout,1,true,0," ",1);
-  SparsityPattern spTranspH; // Wtf
-  SparseMatrix<double> transpH;
-  mg.transp(H,spTranspH,transpH);
-  //foo.print_formatted(std::cout,1,true,0," ",1);
-  //AFin.print_formatted(std::cout,1,true,0," ",1);
-
-
+  std::cout<<" ======================== "<<std::endl;
+  double n = 5;
+  mg.prol(n,spFoo,foo);
 }
 
 /* Pseudo Code for running the tests ! */

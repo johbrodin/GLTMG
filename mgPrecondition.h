@@ -41,7 +41,6 @@ public:
 	//GLTmg methods remove some for optimization
 	void presmooth(Vector<double> &vicky);
 	void postsmooth(Vector<double> &vicky);
-	/* These method are used outside of this class */
 	Vector<int> factor(const int N);
 	Vector<int> unique(Vector<int> factor);
 	Vector<int> accumVector(Vector<int> v);
@@ -345,7 +344,8 @@ void mgPrecondition::kronProd_vector(Vector<double> &A, Vector<double> &B,
 	}
 }
 
-/* 	Here we make a transpose of matrix A which can be any type of a matrix  */
+/* 	Here we make a transpose of matrix A which can be any type of a matrix 
+	output sp and M */
 void mgPrecondition::transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M){
 	const int n = A.m();
 	const int m = A.n();
@@ -416,6 +416,11 @@ void mgPrecondition::spdiags(double n,SparsityPattern &spaa, SparseMatrix <doubl
 /* This is an implementation of the algorithm 
 	(1/n)*prol([2 1 1], [0 -1 1],n)
 	given in the gltmg_test matlab code 
+
+	This code is memory-ineffective and should include destructors
+
+	Method tested and seems to work.... Finaly....
+
 	*/
 void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &P){
 	// aa = spdiags(kron(PP,ones),dd,n,n)
@@ -426,8 +431,8 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 	SparsityPattern spTemp;
 	SparseMatrix<double> smTemp;
 	kronProd(aa,aa,spTemp,smTemp);
-	SparseMatrix<double> smP;
 	SparsityPattern spP2;
+	SparseMatrix<double> smP;
 	kronProd(aa,smTemp,spP2,smP);
 	/* Create smH = speye(n) then remove every other row
 		smH = smH(1:2:n,:)*/
@@ -445,25 +450,25 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 	for(int i=0; i<N2; i++){
 		smH.add(i,2*i,1);
 	}
-	smH.print_formatted(std::cout,1,true,0," ",1);
-	// H = kron(smH,smH)
+	// H = kron(smH,kron(smH,smH))
+	SparsityPattern sp_dummyH;
+	SparseMatrix<double> dummyH; 
 	SparsityPattern spH;
 	SparseMatrix<double> H;
-	kronProd(smH,smH,spH,H);
+	kronProd(smH,smH,sp_dummyH,dummyH);
+	kronProd(smH,dummyH,spH,H);
 	// P = smP*H'; P = (1/n)*P
-	std::cout<<" - - - -- - - "<<std::endl;
-	H.print_formatted(std::cout,1,true,0," ",1);
-	SparseMatrix<double> transpH;
 	SparsityPattern spTranspH;
+	SparseMatrix<double> transpH;
 	transp(H,spTranspH,transpH);
 	DynamicSparsityPattern dspP(0);
 	spP.copy_from(dspP);
 	P.reinit(spP);
 	smP.mmult(P,transpH,Vector<double>(),true);
+	//P = (1/n).P
+	P*=(1/n);
 
 }
-
-
 /*==========================================================================================================================*/
 
 /* Test/Help functions! */
