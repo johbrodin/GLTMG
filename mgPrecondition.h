@@ -63,8 +63,9 @@ private:
 	const SmartPointer<const Vector<double>> rhs;
 	SmartPointer<Vector<double>> test_vector;
 	SmartPointer<SparseMatrix<double>> test_matrix;
-	double tol;
-	double max_iterations;
+        //Johanna:
+        double tol; //tolerance
+        double max_iterations; //max number of MG cycles
         void mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const; //const to be able to be called by the const vmult function
         void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
         const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
@@ -106,7 +107,9 @@ rhs(&vector)//,
     */
 }
 
-// This will be the GLTmg main function!
+/* ===================== The functions needed to perform GLTmg ==============================================================*/
+/* This will be the GLTmg main function!
+ * */
 void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const {
     //dst = src;
     //std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
@@ -139,6 +142,8 @@ void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const
     end
     iter = i-1;*/
 }
+
+/* ===================== Help functions for vmult (/Johanna) ==============================================================*/
 
 void mgPrecondition::newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const {// )const{//
     //residual  r=b-x*A
