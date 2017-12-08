@@ -63,43 +63,67 @@ private:
 	SmartPointer<Vector<double>> test_vector;
 	SmartPointer<SparseMatrix<double>> test_matrix;
         double tol;
+        double max_iterations;
+        void mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const; //const to be able to be called by the const vmult function
+        void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
+        const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
+        const SmartPointer<Vector<SparseMatrix<double>>> PP;
 };
 
 mgPrecondition::mgPrecondition(const SparseMatrix<double> &sparse_matrix,
 	const Vector<double> &vector):
 system_matrix(&sparse_matrix),
-rhs(&vector)
+rhs(&vector)//,
+//  BB(&BB),PP(&PP)
 {
     tol = 0.00000001; //1e-8;
+    max_iterations = 3; //number of MG cycles
+    int n=3;
+  //  Vector<double>(BB->)(n); //TODO BB, PP create here of r
 }
 
 // This will be the GLTmg main function!
 void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const {
-        //dst = src;
+    //dst = src;
+    //std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
 
-        dst=0;
-        Vector<double> r(src.size());
-        system_matrix->vmult(r,src);
-        r -= src;
 
-        std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
+    dst=0;  //initial guess
+    Vector<double> r(src.size());
+  //  newResidual(r,dst,src,BB[0]);//);//
+    double tol_res = tol*src.l2_norm();
 
-        //TTTT
+    int level = 0;
+    while (r.l2_norm() > tol_res && level <= max_iterations)
+    {
+        mgRecursion(dst,src,level);
 
-        /*% initial guess
-        x = zeros(size(b));
-        r = b-A*x;                % residual
-        tol = tol*norm(b);
+    }
 
-        i = 1;
-        while norm(r) > tol && i <= nit
-           % one step of MG-GLT
-           x = mgGLT_setup(A, BB, PP, b, x, gamma, presmooth, postsmooth, n, 1);
-           % new residual
-           r = b-A*x;
-           i = i+1;
-        end
-        iter = i-1;*/
+    /*% initial guess
+    x = zeros(size(b));
+    r = b-A*x;                % residual
+    tol = tol*norm(b);
+
+    i = 1;
+    while norm(r) > tol && i <= nit
+       % one step of MG-GLT
+       x = mgGLT_setup(A, BB, PP, b, x, gamma, presmooth, postsmooth, n, 1);
+       % new residual
+       r = b-A*x;
+       i = i+1;
+    end
+    iter = i-1;*/
+}
+void mgPrecondition::newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const {// )const{//
+    //residual  r=b-x*A
+       /* A.vmult(r,b);    //, r_temp=x*A
+        r -= x;// r=r_temp-b, but *-1 needed to get r=b-x*A
+        int sign = -1;
+        r*=sign;*/
+}
+void mgPrecondition::mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const {
+
 }
 
 /* ===================== The functions needed to perform GLTmg ==============================================================*/

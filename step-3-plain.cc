@@ -55,6 +55,7 @@ public:
   void run ();
   // Added Public methods
   void test_run(); // Here we run our tests!
+  void test_outer_product(); //Test outer product with tensors!
   void mgGLT_init(); // Put this in mgPrecondition.h
 private:
   void make_grid ();
@@ -332,6 +333,12 @@ void Step3::mgGLT_init(){
   Vector<int> reps = accumVector(NN);
   double n = vectorProd(reps,nu);
   */
+}
+
+void Step3::test_outer_product(){
+    //Vector v();
+
+    //Tensor<>
 }
 
 /*========================================================================================================================*/
