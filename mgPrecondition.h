@@ -47,12 +47,14 @@ public:
 	Vector<int> accumVector(Vector<int> v);
 	double vectorProd(Vector<int> v1, Vector<int> v2);
 	void prol(double n, SparsityPattern &spP, SparseMatrix<double> &smP); // Change the return type ;)
+	SparseMatrix<double> prol_const(double n, SparsityPattern &spP); // Change the return type ;)
 	void kronProd(SparseMatrix<double> &A, SparseMatrix<double> &B,
 		SparsityPattern &sp, SparseMatrix <double> &M);
 	void kronProd_vector(Vector<double> &A, Vector<double> &B,
 		SparsityPattern &sp, SparseMatrix <double> &M);
 	void spdiags(double n,SparsityPattern &spaa, SparseMatrix <double> &aa);
 	void transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M);
+	SparseMatrix<double> pointMatrix(SparsityPattern &sp);
 	void mgGLT_init();
 	// Help methods
 	void printMatrix();
@@ -68,18 +70,17 @@ private:
         double max_iterations; //max number of MG cycles
         void mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const; //const to be able to be called by the const vmult function
         void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
-        const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
-        const SmartPointer<Vector<SparseMatrix<double>>> PP;
+        //const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
+        //const SmartPointer<Vector<SparseMatrix<double>>> PP;
         // Alternative BB and PP
-        std::vector<SparseMatrix<double>*> stdBB;
+        std::vector<SparseMatrix<double> const *> BB;
+        std::vector<SparseMatrix<double> const *> PP;
     };
 
     mgPrecondition::mgPrecondition(const SparseMatrix<double> &sparse_matrix,
     	const Vector<double> &vector):
     system_matrix(&sparse_matrix),
-rhs(&vector)//,
-//  BB(&BB),PP(&PP)
-{
+    rhs(&vector){
     tol = 0.00000001; //1e-8;
     max_iterations = 3; //number of MG cycles
     //int n=3; Should use some other variable than "n"
@@ -87,24 +88,40 @@ rhs(&vector)//,
 
     // Hreinn
     // AFin quadratic, right!?
+    // I should put this shit in a function
     int N = system_matrix->m();
     Vector<int> NN = factor(N);
     Vector<int> nu = unique(NN);
     Vector<int> reps = accumVector(NN);
     double n = vectorProd(reps,nu);
-    int level = 0;
-    //stdBB.push_back(system_matrix);
-    /* Pseudo code *
-    vicky.push_back(&A); vicky.push_back(&B);
-	BB{i} = AFin;
-	PP{i} = 0;
+    int level = 0;    
+    /* Pseudo code */
+    //BB{i} = AFin;
+	//PP{i} = 0;
+    const SparseMatrix<double> *m = system_matrix;
+    BB.push_back(m);
+    SparsityPattern spPoint;
+    const SparseMatrix<double> point = pointMatrix(spPoint);
+    PP.push_back(&point);
     double n1 = n;
-	while(n1>=3){
-		SparsityPattern spP;
-  		SparseMatrix<double> P;
-  		prol(n1,spP,P);
-	}
-    */
+    while(n1>=3){
+    	// P = (1/n1)*prol([. . .][ . . .])
+    	//PP{i} = P
+    	SparsityPattern spP;
+    	const SparseMatrix<double> P = prol_const(n1,spP);
+    	PP.push_back(&P);
+    	// B = P'*BB{i}*P
+    	// BB{i+1} = B
+    	SparsityPattern spB;
+    	SparseMatrix<double> B;
+    	DynamicSparsityPattern dspB(0);
+    	spB.copy_from(dspB);
+    	B.reinit(spB);
+
+    	n1 = (n1+1)/2;
+    	level++;
+    	//smP.mmult(P,transpH,Vector<double>(),true);
+    }
 }
 
 /* ===================== The functions needed to perform GLTmg ==============================================================*/
@@ -492,7 +509,70 @@ void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &
 	smP.mmult(P,transpH,Vector<double>(),true);
 	//P = (1/n).P
 	P*=(1/n);
+}
 
+/*
+	We change the prol method such that it can return a const SparseMatrix :)
+*/ 
+SparseMatrix<double> mgPrecondition::prol_const(double n, SparsityPattern &spP){
+	// aa = spdiags(kron(PP,ones),dd,n,n)
+	SparsityPattern spaa;
+	SparseMatrix<double> aa;
+	spdiags(n,spaa,aa);
+	// smP = kron(aa,kron(aa,aa))
+	SparsityPattern spTemp;
+	SparseMatrix<double> smTemp;
+	kronProd(aa,aa,spTemp,smTemp);
+	SparsityPattern spP2;
+	SparseMatrix<double> smP;
+	kronProd(aa,smTemp,spP2,smP);
+	/* Create smH = speye(n) then remove every other row
+		smH = smH(1:2:n,:)*/
+	SparsityPattern spH2;
+	SparseMatrix<double> smH;
+	int N1 = (int)n;
+	int N2 = N1/2+N1%2;
+	DynamicSparsityPattern dspH(N2,N1);
+	for(int i=0; i<N2; i++){
+		dspH.add(i,2*i);
+	}
+	dspH.compress();
+	spH2.copy_from(dspH);
+	smH.reinit(spH2);
+	for(int i=0; i<N2; i++){
+		smH.add(i,2*i,1);
+	}
+	// H = kron(smH,kron(smH,smH))
+	SparsityPattern sp_dummyH;
+	SparseMatrix<double> dummyH; 
+	SparsityPattern spH;
+	SparseMatrix<double> H;
+	kronProd(smH,smH,sp_dummyH,dummyH);
+	kronProd(smH,dummyH,spH,H);
+	// P = smP*H'; P = (1/n)*P
+	SparsityPattern spTranspH;
+	SparseMatrix<double> transpH;
+	SparseMatrix<double> P;
+	transp(H,spTranspH,transpH);
+	DynamicSparsityPattern dspP(0);
+	spP.copy_from(dspP);
+	P.reinit(spP);
+	smP.mmult(P,transpH,Vector<double>(),true);
+	//P = (1/n).P
+	P*=(1/n);
+	return P;
+}
+
+  /* Method that returns a double matrix with only one zero element */
+SparseMatrix<double> mgPrecondition::pointMatrix(SparsityPattern &sp){
+  SparseMatrix<double> M;
+  DynamicSparsityPattern dsp(1,1);
+  dsp.add(0,0);
+  dsp.compress();
+  sp.copy_from(dsp);
+  M.reinit(sp);
+  M.add(0,0,0);
+  return M;
 }
 
 void mgPrecondition::mgGLT_init(){

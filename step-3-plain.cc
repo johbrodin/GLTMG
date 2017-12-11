@@ -271,8 +271,8 @@ void Step3::writeToFile(SparseMatrix<double> &matrix,std::string filename){
 void Step3::test_run(){
 
     // for j=2:6 levels
-  SparsityPattern spAFin,spA,spM;
-  SparseMatrix<double> AFin,A,M;
+  SparsityPattern spAFin,spA;
+  SparseMatrix<double> AFin,A;
   int size = 3;
   inputFile_supplied(size,size,"bb.txt",spAFin,AFin);
   int N = size; // N could be an int, AFin quadratic.
@@ -282,7 +282,20 @@ void Step3::test_run(){
   Vector<double> b(N);
   AFin.vmult(b,y);  // Have to reinit b...
   mgPrecondition mg(AFin,b);
-  //foo.reinit(2);
+  std::vector<SparseMatrix<double> const *> BB;
+  double n1 = 5;
+  SparsityPattern spB;
+  const SparseMatrix<double> B = mg.prol_const(n1,spB);
+  //B.print_formatted(std::cout,1,true,0," ",1);
+  BB.push_back(&B);
+  SparsityPattern spfoo;
+  SparseMatrix<double> foo;
+  DynamicSparsityPattern dsp(0);
+  spfoo.copy_from(dsp);
+  foo.reinit(spfoo);
+  //BB[0]->mmult(foo,*BB[0],Vector<double>(),true);
+
+  
 
 }
 
@@ -334,7 +347,7 @@ int main ()
   spM.copy_from(dspM);
   M.reinit(spM);
   AFin.mmult(M,A,Vector<double>(),true);
-  M.print_formatted(std::cout,1,true,0," ",1);
+  M.print_forma tted(std::cout,1,true,0," ",1);
 */
 /* - - - - - Here I test BB and PP storages - - - - - - -*/
   /* Not sure if this is sound memory handling! ! ! 
@@ -342,6 +355,8 @@ int main ()
   std::vector<SparseMatrix<double>*> vicky;
   vicky.push_back(&A); vicky.push_back(&B);
   vicky[0]->print_formatted(std::cout,1,true,0," ",1);
+      //const SparseMatrix<double> *m = system_matrix;
+    //BB.push_back(m);
   */
 
   /* Could use MGLevelObject<Object>, which actually referenses the std::vector!
