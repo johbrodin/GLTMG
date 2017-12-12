@@ -58,6 +58,9 @@ public:
 	void printMatrix();
 	void printVector();
         void sayHi();
+        void mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const; //const to be able to be called by the const vmult function
+        void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
+
 private:
         const SmartPointer<const SparseMatrix<double>> system_matrix;
         const SmartPointer<const Vector<double>> rhs;
@@ -66,8 +69,6 @@ private:
         //Johanna:
         double tol; //tolerance
         double max_iterations; //max number of MG cycles
-        void mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const; //const to be able to be called by the const vmult function
-        void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
         const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
         const SmartPointer<Vector<SparseMatrix<double>>> PP;
         // Alternative BB and PP
@@ -144,13 +145,13 @@ void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const
 }
 
 /* ===================== Help functions for vmult (/Johanna) ==============================================================*/
-
+//can probably make better
 void mgPrecondition::newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const {// )const{//
     //residual  r=b-x*A
-       /* A.vmult(r,b);    //, r_temp=x*A
+        A.vmult(r,b);    //, r_temp=x*A
         r -= x;// r=r_temp-b, but *-1 needed to get r=b-x*A
-        int sign = -1;
-        r*=sign;*/
+        double sign = -1.0;
+        r*=sign;
 }
 void mgPrecondition::mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const {
 
