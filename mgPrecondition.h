@@ -209,7 +209,7 @@ void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &sr
        x = postsmooth(A,b,x);% v2 steps of post-smoother*/
 
 }
-void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double>* &A){
+void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double> *&A){
         A->Jacobi_step(dst,src,1);
 }
 
