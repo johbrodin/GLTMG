@@ -314,12 +314,16 @@ void Step3::test_MG(){
 
   DynamicSparsityPattern dspAFin(n,n);
   dspAFin.add(0,2);
+  dspAFin.add(0,0);
   dspAFin.add(1,1);
+  dspAFin.add(2,2);
   SparsityPattern spAFin;
   spAFin.copy_from(dspAFin);
   SparseMatrix<double> AFin(spAFin);
   AFin.add(0,2,4.0);
+  AFin.add(0,0,1.0);
   AFin.add(1,1,3.0);
+  AFin.add(2,2,1.0);
 
   Vector<double> b(n);
   b[0]=1;
@@ -333,7 +337,9 @@ void Step3::test_MG(){
   //A.copy_from(AFin);
   Vector<double> x(n);
   x=0;
-  Vector<double> r(n);
+
+  //residual test (ok)
+/*  Vector<double> r(n);
   mg.newResidual(r,x,b,AFin); //residual  r=b-A*x
 
   std::cout<<" r0:   ";
@@ -347,7 +353,23 @@ void Step3::test_MG(){
   r.print(std::cout);
   std::cout<<"\n";
 
-  //result: residual works
+  //result: residual works*/
+
+  //presmooth test
+  const SparseMatrix<double> *a(&AFin);
+  std::vector<SparseMatrix<double> const *> BB;
+  BB.push_back(a);
+
+  mg.presmooth_test(x,b,a); //OBS: behöver matris utan nollelement på diagonalen
+  std::cout<<"test av presmooth med direkt pointer ger resultat: "; //1.000e+00 6.667e-01 3.000e+00
+  x.print(std::cout);
+  std::cout<<"\n";
+
+  x=0;
+  mg.presmooth_test(x,b,BB[0]);
+  std::cout<<"test av presmooth med pointer från std::vector ger resultat: "; //-1.100e+01 6.667e-01 3.000e+00
+  x.print(std::cout);
+  std::cout<<"\n";
 
 }
 
@@ -362,7 +384,7 @@ int main ()
   Step3 test;
   //test.run();
   test.test_run();
-  //test.test_MG();
+  test.test_MG();
 
   return 0;
 }
