@@ -57,9 +57,13 @@ public:
     const SparseMatrix<double> transMultMult(SparseMatrix<double> &P, int level, SparsityPattern &sp);
     const SparseMatrix<double> pointMatrix(SparsityPattern &sp);
 	// Help methods
-    void printMatrix();
-    void printVector();
-    void sayHi();
+	void printMatrix();
+	void printVector();
+        void sayHi();
+        //Johanna:
+        void mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const; //const to be able to be called by the const vmult function
+        void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
+        void presmooth_test(Vector<double> &dst,Vector<double> &src,SparseMatrix<double>* &A);
 private:
     const SmartPointer<const SparseMatrix<double>> system_matrix;
     const SmartPointer<const Vector<double>> rhs;
@@ -68,8 +72,6 @@ private:
         //Johanna:
         double tol; //tolerance
         double max_iterations; //max number of MG cycles
-        void mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const; //const to be able to be called by the const vmult function
-        void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
         //const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
         //const SmartPointer<Vector<SparseMatrix<double>>> PP;
         // Alternative BB and PP
@@ -164,16 +166,51 @@ void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const
 }
 
 /* ===================== Help functions for vmult (/Johanna) ==============================================================*/
-
+//can probably make better, but is tested, works
 void mgPrecondition::newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const {// )const{//
-    //residual  r=b-x*A
-       /* A.vmult(r,b);    //, r_temp=x*A
-        r -= x;// r=r_temp-b, but *-1 needed to get r=b-x*A
-        int sign = -1;
-        r*=sign;*/
+    //residual  r=b-A*x
+        A.vmult(r,x);    //, r_temp=A*x
+        r -= b;// r=r_temp-b, but *-1 needed to get r=b-A*x
+        double sign = -1.0;
+        r*=sign;
 }
-void mgPrecondition::mgRecursion(Vector<double> &dst, const Vector<double> &src, int level) const {
+void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const {
+    /*% at the last level the system is solved directly
+    if (n < 5)
+       x = A\b;
+    else*/
 
+    const SparseMatrix<double> *P;
+    P = PP[level];
+//    dst_x = presmooth();
+    /*P =PP{liv};% projection matrix at the current level
+    x = presmooth(A,b,x);% v1 steps of the pre-smoother
+    r = b-A*x;% residual at the finer grid
+    d = P'*r; % restriction of the residual to the coarser grid
+
+       % dimension of the problem at the coarser level
+    %    if (mod(n,2) == 0)
+    %        k = n/2;
+    %    else
+    %        % k=(n-1)/2;   %%%%% n=2^t-1 %%%%%%
+    %        k = (n+1)/2;  %%%%% n=2^t+1 %%%%%%
+    %
+    %    end
+       k = floor((n+1)*0.5);
+    %    e = zeros(k^3,1);
+       e = zeros(size(d));% the initial error at the coarse grid is zero
+       for j=1 : gamma   % recursive call of the MG-GLT
+    %       B = P'*A*P;
+          B = BB{liv+1};
+          e = mgGLT_setup(B, BB, PP, d, e, gamma, presmooth, postsmooth, k, liv+1);
+       end
+       g = P*e;% the error e is interpolated back to obtain the finer level error
+       x = x + g;% updating of the solution with the error at the finer level
+       x = postsmooth(A,b,x);% v2 steps of post-smoother*/
+
+}
+void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,SparseMatrix<double>* &A){
+        A->Jacobi_step(dst,src,1);
 }
 
 /* ===================== The functions needed to perform GLTmg ==============================================================*/

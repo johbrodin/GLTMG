@@ -55,7 +55,11 @@ public:
   void run ();
   // Added Public methods
   void test_run(); // Here we run our tests!
+
+  /*Johanna makes tests!:*/
   void test_outer_product(); //Test outer product with tensors!
+  void test_MG(); //Test outer product with tensors!
+
 private:
   void make_grid ();
   void setup_system ();
@@ -283,11 +287,54 @@ void Step3::test_run(){
  
 }
 
+/*======================================== Johanna makes tests ======================================================*/
 void Step3::test_outer_product(){
     //Vector v();
 
     //Tensor<>
 }
+void Step3::test_MG(){
+  unsigned int n=3;
+
+  DynamicSparsityPattern dspAFin(n,n);
+  dspAFin.add(0,2);
+  dspAFin.add(1,1);
+  SparsityPattern spAFin;
+  spAFin.copy_from(dspAFin);
+  SparseMatrix<double> AFin(spAFin);
+  AFin.add(0,2,4.0);
+  AFin.add(1,1,3.0);
+
+  Vector<double> b(n);
+  b[0]=1;
+  b[1]=2;
+  b[2]=3;
+
+  mgPrecondition mg(AFin,b);
+
+  //const
+  //SparseMatrix<double> A;
+  //A.copy_from(AFin);
+  Vector<double> x(n);
+  x=0;
+  Vector<double> r(n);
+  mg.newResidual(r,x,b,AFin); //residual  r=b-A*x
+
+  std::cout<<" r0:   ";
+  r.print(std::cout);
+  std::cout<<"\n";
+
+  x=1;
+
+  mg.newResidual(r,x,b,AFin); //residual  r=b-A*x
+  std::cout<<" r1:   ";
+  r.print(std::cout);
+  std::cout<<"\n";
+
+  //result: residual works
+
+}
+
 
 /*========================================================================================================================*/
 
@@ -299,6 +346,7 @@ int main ()
   Step3 test;
   //test.run();
   test.test_run();
+  //test.test_MG();
 
   return 0;
 }
