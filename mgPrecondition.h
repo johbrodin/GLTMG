@@ -63,7 +63,7 @@ public:
         //Johanna:
         void mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const; //const to be able to be called by the const vmult function
         void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
-        void presmooth_test(Vector<double> &dst,Vector<double> &src,SparseMatrix<double>* &A);
+        void presmooth_test(Vector<double> &dst, Vector<double> &src, const SparseMatrix<double> *&A);
 private:
     const SmartPointer<const SparseMatrix<double>> system_matrix;
     const SmartPointer<const Vector<double>> rhs;
@@ -209,7 +209,7 @@ void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &sr
        x = postsmooth(A,b,x);% v2 steps of post-smoother*/
 
 }
-void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,SparseMatrix<double>* &A){
+void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double>* &A){
         A->Jacobi_step(dst,src,1);
 }
 
