@@ -352,7 +352,11 @@ void Step3::test_MG(){
 
   x=0;
   mg.presmooth_test(x,b,BB[0]);
+<<<<<<< HEAD
   std::cout<<"test av presmooth med pointer från std::vector ger resultat: "; //-1.100e+01 6.667e-01 3.000e+00 lolwut, måste vara att x inte resettats
+=======
+  std::cout<<"test av presmooth med pointer från std::vector ger resultat: "; //1.00e+0 6.667e-01 3.000e+00
+>>>>>>> a7cb3804bc89d9de140f6bee56fd3b3170846ed3
   x.print(std::cout);
   std::cout<<"\n";*/
 
@@ -377,7 +381,7 @@ int main ()
   Step3 test;
   //test.run();
   test.test_run();
-  test.test_MG();
+  //test.test_MG();
 
   return 0;
 }
