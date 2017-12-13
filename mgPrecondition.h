@@ -48,7 +48,6 @@ public:
       SparsityPattern &sp, SparseMatrix <double> &M);
     void spdiags(double n,SparsityPattern &spaa, SparseMatrix <double> &aa);
     void transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M);
-    void prol(double n, SparsityPattern &spP, SparseMatrix<double> &smP);
     double vectorProd(Vector<int> v1, Vector<int> v2);
     Vector<int> factor(const int N);
     Vector<int> unique(Vector<int> factor);
@@ -206,7 +205,7 @@ void mgPrecondition::newResidual(Vector<double> &r,Vector<double> &x,const Vecto
 
 void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double> *&A){
     A->Jacobi_step(dst,src,1);
-    }
+}
 
 /* ===================== The functions needed to perform GLTmg ==============================================================*/
 
@@ -307,25 +306,25 @@ Vector<int> mgPrecondition::accumVector(Vector<int> v){
             res(*iter-1)++;
         }
         return res;
-    }
+}
 
 /* This method performs the prod(nu.^(resp(nu)./3))
         action given in the GLTmg*/
-    double mgPrecondition::vectorProd(Vector<int> reps, Vector<int> nu){
-        double n = 1;
+double mgPrecondition::vectorProd(Vector<int> reps, Vector<int> nu){
+    double n = 1;
         // the reps(nu) action
-        Vector<double> repsNu;	//Used for development
-        repsNu.reinit(nu.size());
-        Vector<int>::iterator nu_iter = nu.begin();
-        Vector<int>::iterator nu_ender = nu.end();
-        int i =  0;
-        for(; nu_iter!=nu_ender; nu_iter++){
-            repsNu(i) = (double)(reps(*nu_iter-1))/3;
-            n = n*pow(nu(i),repsNu(i));
-            i++;
-        }
-        return n;
+    Vector<double> repsNu;	//Used for development
+    repsNu.reinit(nu.size());
+    Vector<int>::iterator nu_iter = nu.begin();
+    Vector<int>::iterator nu_ender = nu.end();
+    int i =  0;
+    for(; nu_iter!=nu_ender; nu_iter++){
+        repsNu(i) = (double)(reps(*nu_iter-1))/3;
+        n = n*pow(nu(i),repsNu(i));
+        i++;
     }
+    return n;
+}
 /*
         This is the kronecker product of 2 sparse matrices
 */
@@ -499,55 +498,6 @@ and Vector B is percieved to be a mx1 vector!
 
         Method tested and seems to work.... Finaly....
 
-        */
-        void mgPrecondition::prol(double n, SparsityPattern &spP, SparseMatrix<double> &P){
-	// aa = spdiags(kron(PP,ones),dd,n,n)
-           SparsityPattern spaa;
-           SparseMatrix<double> aa;
-           spdiags(n,spaa,aa);
-	// smP = kron(aa,kron(aa,aa))
-           SparsityPattern spTemp;
-           SparseMatrix<double> smTemp;
-           kronProd(aa,aa,spTemp,smTemp);
-           SparsityPattern spP2;
-           SparseMatrix<double> smP;
-           kronProd(aa,smTemp,spP2,smP);
-	/* Create smH = speye(n) then remove every other row
-		smH = smH(1:2:n,:)*/
-           SparsityPattern spH2;
-           SparseMatrix<double> smH;
-           int N1 = (int)n;
-           int N2 = N1/2+N1%2;
-           DynamicSparsityPattern dspH(N2,N1);
-           for(int i=0; i<N2; i++){
-              dspH.add(i,2*i);
-          }
-          dspH.compress();
-          spH2.copy_from(dspH);
-          smH.reinit(spH2);
-          for(int i=0; i<N2; i++){
-              smH.add(i,2*i,1);
-          }
-	// H = kron(smH,kron(smH,smH))
-          SparsityPattern sp_dummyH;
-          SparseMatrix<double> dummyH; 
-          SparsityPattern spH;
-          SparseMatrix<double> H;
-          kronProd(smH,smH,sp_dummyH,dummyH);
-          kronProd(smH,dummyH,spH,H);
-	// P = smP*H'; P = (1/n)*P
-          SparsityPattern spTranspH;
-          SparseMatrix<double> transpH;
-          transp(H,spTranspH,transpH);
-          DynamicSparsityPattern dspP(0);
-          spP.copy_from(dspP);
-          P.reinit(spP);
-          smP.mmult(P,transpH,Vector<double>(),true);
-	//P = (1/n).P
-          P*=(1/n);
-      }
-
-/*
 	We change the prol method such that it can return a const SparseMatrix :)
 */ 
       const SparseMatrix<double> mgPrecondition::prol_const(double n, SparsityPattern &spP){
