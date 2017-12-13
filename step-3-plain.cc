@@ -59,6 +59,7 @@ public:
   /*Johanna makes tests!:*/
   void test_outer_product(); //Test outer product with tensors!
   void test_MG(); //Test outer product with tensors!
+  void presmooth_test(Vector<double> &dst, Vector<double> &src, const SparseMatrix<double> *&A);
 
 private:
   void make_grid ();
@@ -340,7 +341,7 @@ void Step3::test_MG(){
   //result: residual works*/
 
   //presmooth test
-  const SparseMatrix<double> *a(&AFin);
+/*  const SparseMatrix<double> *a(&AFin);
   std::vector<SparseMatrix<double> const *> BB;
   BB.push_back(a);
 
@@ -351,10 +352,18 @@ void Step3::test_MG(){
 
   x=0;
   mg.presmooth_test(x,b,BB[0]);
-  std::cout<<"test av presmooth med pointer från std::vector ger resultat: "; //1.00e+0 6.667e-01 3.000e+00
+  std::cout<<"test av presmooth med pointer från std::vector ger resultat: "; //-1.100e+01 6.667e-01 3.000e+00 lolwut, måste vara att x inte resettats
   x.print(std::cout);
-  std::cout<<"\n";
+  std::cout<<"\n";*/
 
+  std::vector<SparseMatrix<double> const *> BB;
+  BB.push_back(&AFin);
+  presmooth_test(x,b,BB[0]);
+}
+
+void Step3::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double> *&A){
+//    void Step3::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double>* &A){
+        A->Jacobi_step(dst,src,1);
 }
 
 
