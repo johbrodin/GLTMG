@@ -274,12 +274,10 @@ void Step3::writeToFile(SparseMatrix<double> &matrix,std::string filename){
 
 // This public method runs our tests !
 void Step3::test_run(){
-
-    // for j=2:6 levels
   SparsityPattern spAFin,spA;
   SparseMatrix<double> AFin,A;
-  int size = 3;
-  inputFile_supplied(size,size,"bb.txt",spAFin,AFin);
+  int size = 125;
+  inputFile_supplied(size,size,"AFin.txt",spAFin,AFin);
   int N = size; // N could be an int, AFin quadratic.
   Vector<double> y;
   y.reinit(N);
@@ -287,21 +285,7 @@ void Step3::test_run(){
   Vector<double> b(N);
   AFin.vmult(b,y);  // Have to reinit b...
   mgPrecondition mg(AFin,b);
-  std::vector<SparseMatrix<double> const *> BB;
-  double n1 = 5;
-  SparsityPattern spB;
-  const SparseMatrix<double> B = mg.prol_const(n1,spB);
-  //B.print_formatted(std::cout,1,true,0," ",1);
-  BB.push_back(&B);
-  SparsityPattern spfoo;
-  SparseMatrix<double> foo;
-  DynamicSparsityPattern dsp(0);
-  spfoo.copy_from(dsp);
-  foo.reinit(spfoo);
-  //BB[0]->mmult(foo,*BB[0],Vector<double>(),true);
-
-  
-
+ 
 }
 
 /*======================================== Johanna makes tests ======================================================*/
@@ -399,8 +383,26 @@ int main ()
 }
 /* - - - - - -  The code-dump - - - - - - - - - */
 
-/* This is a test of the prol method! in mgPrecondtion.h
 
+  /* Problem with dim, but this seems to work . . .
+  std::vector<SparseMatrix<double> const *> BB;
+  std::vector<SparseMatrix<double> const *>::iterator it;
+  double n1 = 5;
+  SparsityPattern spB;
+  SparsityPattern spB2;
+  const SparseMatrix<double> B = mg.prol_const(n1,spB);
+  const SparseMatrix<double> B2 = mg.prol_const(n1,spB);
+  BB.push_back(&B);
+  BB.push_back(&B2);
+  SparsityPattern spfoo;
+  SparseMatrix<double> foo;
+  DynamicSparsityPattern dsp(0);
+  spfoo.copy_from(dsp);
+  foo.reinit(spfoo);
+  BB[0]->mmult(foo,*BB[1],Vector<double>(),true);
+ */ 
+
+/* This is a test of the prol method! in mgPrecondtion.h
   inputFile_supplied(3,3,"A.txt",spA,A);
   //A.print_formatted(std::cout,1,true,0," ",1);
   SparsityPattern spFoo;
