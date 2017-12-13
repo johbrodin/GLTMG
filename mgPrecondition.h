@@ -54,35 +54,35 @@ public:
     Vector<int> unique(Vector<int> factor);
     Vector<int> accumVector(Vector<int> v);
     const SparseMatrix<double> prol_const(double n, SparsityPattern &spP);
-    const SparseMatrix<double> transMultMult(SparseMatrix<double> &P, int level, SparsityPattern &sp);
+    const SparseMatrix<double> transMultMult(const SparseMatrix<double> &P,const SparseMatrix<double> *&b, int level, SparsityPattern &sp);
     const SparseMatrix<double> pointMatrix(SparsityPattern &sp);
 	// Help methods
-	void printMatrix();
-	void printVector();
-        void sayHi();
+    void printMatrix();
+    void printVector();
+    void sayHi();
         //Johanna:
-        void mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const; //const to be able to be called by the const vmult function
-        void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
-        void presmooth_test(Vector<double> &dst, Vector<double> &src, const SparseMatrix<double> *&A);
+    void mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const; //const to be able to be called by the const vmult function
+    void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
+    void presmooth_test(Vector<double> &dst, Vector<double> &src, const SparseMatrix<double> *&A);
 private:
     const SmartPointer<const SparseMatrix<double>> system_matrix;
     const SmartPointer<const Vector<double>> rhs;
     SmartPointer<Vector<double>> test_vector;
     SmartPointer<SparseMatrix<double>> test_matrix;
         //Johanna:
-        double tol; //tolerance
-        double max_iterations; //max number of MG cycles
+    double tol; //tolerance
+    double max_iterations; //max number of MG cycles
         //const SmartPointer<Vector<SparseMatrix<double>>> BB; //or should they be SmartPointers? TODO
         //const SmartPointer<Vector<SparseMatrix<double>>> PP;
         // Alternative BB and PP
-        std::vector<SparseMatrix<double> const *> BB;	// Vector of pointers to constant objects
-        std::vector<SparseMatrix<double> const *> PP;
-    };
+    std::vector<SparseMatrix<double> const *> BB;	// Vector of pointers to constant objects
+    std::vector<SparseMatrix<double> const *> PP;
+};
 
-    mgPrecondition::mgPrecondition(const SparseMatrix<double> &sparse_matrix,
-    	const Vector<double> &vector):
-    system_matrix(&sparse_matrix),
-    rhs(&vector){
+mgPrecondition::mgPrecondition(const SparseMatrix<double> &sparse_matrix,
+   const Vector<double> &vector):
+system_matrix(&sparse_matrix),
+rhs(&vector){
     tol = 0.00000001; //1e-8;
     max_iterations = 3; //number of MG cycles
     //int n=3; Should use some other variable than "n"
@@ -104,29 +104,25 @@ private:
 	//PP{i} = 0;
     const SparseMatrix<double> *m = system_matrix;
     BB.push_back(m);
-    SparsityPattern spPoint;
-    const SparseMatrix<double> point = pointMatrix(spPoint);
-    PP.push_back(&point);
     double n1 = n;
-    while(n1>=5){  // Changed from 3 to 5 for debugging
+    while(n1>=3){
     	// P = (1/n1)*prol([. . .][ . . .])
     	//PP{i} = P
-    	SparsityPattern spP;
-    	const SparseMatrix<double> P = prol_const(n1,spP);
-    	PP.push_back(&P);
-    	//std::cout<<" P: m x n = "<<P.m()<<" x "<<P.n()<<std::endl;
-    	//std::cout<<" BB[i]: m x n = "<<BB[level]->m()<<" x "<<BB[level]->n()<<std::endl;
-    	// B = P'*BB{i}*P
+        std::cout<<" ================== level:  "<<level<<std::endl;
+        SparsityPattern spP,spB;
+        const SparseMatrix<double> P = prol_const(n1,spP);
+        PP.push_back(&P);
+        //std::cout<<" PP[level] mxn : "<<PP[level]->m()<<" "<<PP[level]->n()<<std::endl;
+        //std::cout<<" BB[level] mxn : "<<BB[level]->m()<<" "<<BB[level]->n()<<std::endl;
+    	
+        // B = P'*BB{i}*P
     	// BB{i+1} = B
-    	SparsityPattern spB;
-        //const SparseMatrix<double> B transMultMult(P,level,spB);
-    	//BB.push_back(&B); //problem! this is not const! 
-    	n1 = (n1+1)/2;
-    	level++;
-    	//smP.mmult(P,transpH,Vector<double>(),true);
+        const SparseMatrix<double> B = transMultMult(P,BB[level],level,spB);
+    	BB.push_back(&B); //problem! this is not const!
+        std::cout<<"BB[level+1] mxn : "<<BB[level+1]->m()<<" "<<BB[level+1]->n()<<std::endl;
+        n1 = (n1+1)/2;
+        level++;
     }
-    std::cout<<" BB[0]: m x n = "<<BB[0]->m()<<" x "<<BB[0]->n()<<std::endl;
-    //std::cout<<" BB[1]: m x n = "<<BB[1]->m()<<" x "<<BB[1]->n()<<std::endl;
 }
 
 /* ===================== The functions needed to perform GLTmg ==============================================================*/
@@ -135,8 +131,6 @@ private:
 void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const {
     //dst = src;
     //std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
-
-
     dst=0;  //initial guess
     Vector<double> r(src.size());
   //  newResidual(r,dst,src,BB[0]);//);//
@@ -146,7 +140,6 @@ void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const
     while (r.l2_norm() > tol_res && level <= max_iterations)
     {
     	mgRecursion(dst,src,level);
-
     }
 
     /*% initial guess
@@ -173,15 +166,16 @@ void mgPrecondition::newResidual(Vector<double> &r,Vector<double> &x,const Vecto
         r -= b;// r=r_temp-b, but *-1 needed to get r=b-A*x
         double sign = -1.0;
         r*=sign;
-}
-void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const {
+    }
+
+    void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const {
     /*% at the last level the system is solved directly
     if (n < 5)
        x = A\b;
     else*/
 
-    const SparseMatrix<double> *P;
-    P = PP[level];
+        const SparseMatrix<double> *P;
+        P = PP[level];
 //    dst_x = presmooth();
     /*P =PP{liv};% projection matrix at the current level
     x = presmooth(A,b,x);% v1 steps of the pre-smoother
@@ -208,10 +202,11 @@ void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &sr
        x = x + g;% updating of the solution with the error at the finer level
        x = postsmooth(A,b,x);% v2 steps of post-smoother*/
 
-}
+    }
+
 void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double> *&A){
-        A->Jacobi_step(dst,src,1);
-}
+    A->Jacobi_step(dst,src,1);
+    }
 
 /* ===================== The functions needed to perform GLTmg ==============================================================*/
 
@@ -221,90 +216,91 @@ void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,cons
         We use the predefined Jacobi_step
 */
 void mgPrecondition::presmooth(Vector<double> &vicky){
-        system_matrix->Jacobi_step(vicky,*rhs,1); // Remember smartpointer to rhs!
-    }
+    system_matrix->Jacobi_step(vicky,*rhs,1); // Remember smartpointer to rhs!
+}
 
-    void mgPrecondition::postsmooth(Vector<double> &vicky){
-        const double damp = 2./3;
-        system_matrix->Jacobi_step(vicky,*rhs,damp);
-    }
+void mgPrecondition::postsmooth(Vector<double> &vicky){
+    const double damp = 2./3;
+    system_matrix->Jacobi_step(vicky,*rhs,damp);
+}
 
 /* Return a vector containing the primenumbers of N
         Might Implement Sieve at a later point 		*/
-    Vector<int> mgPrecondition::factor(int N){
-        int index = 0;
-        const int maxSize = 10;
-        int factors[maxSize];
-        while(N%2==0){
+
+Vector<int> mgPrecondition::factor(int N){
+    int index = 0;
+    const int maxSize = 10;
+    int factors[maxSize];
+    while(N%2==0){
                 //Add 2
-            factors[index] = 2;
-            index++;
-            N=N/2;
-        }
-        for(int i=3; i<=sqrt(N); i=i+2){
-            while(N%i==0){
-                        //add i
-                factors[index] = i;
-                index++;
-                N=N/i;
-            }
-        }
-        if(N>2){
-                //add (N)
-            factors[index] = N;
-            index++;
-        }
-        Vector<int> result;
-        result.reinit(index);
-        Vector<int>::iterator iter = result.begin();
-        Vector<int>::iterator ender = result.end();
-        int i = 0;
-        for(; iter!=ender; iter++){
-            *iter = factors[i];
-            i++;
-        }
-        return result;
+        factors[index] = 2;
+        index++;
+        N=N/2;
     }
+    for(int i=3; i<=sqrt(N); i=i+2){
+        while(N%i==0){
+                        //add i
+            factors[index] = i;
+            index++;
+            N=N/i;
+        }
+    }
+    if(N>2){
+                //add (N)
+        factors[index] = N;
+        index++;
+    }
+    Vector<int> result;
+    result.reinit(index);
+    Vector<int>::iterator iter = result.begin();
+    Vector<int>::iterator ender = result.end();
+    int i = 0;
+    for(; iter!=ender; iter++){
+        *iter = factors[i];
+        i++;
+    }
+    return result;
+}
 
 /* removes extra numbers from factors */
-    Vector<int> mgPrecondition::unique(Vector<int> factor){
-        if(factor.size()==1){
-            return factor;
-        } else{
-            Vector<int> unique;
-            const int maxSize = 10;
-            int tmp[maxSize];
-            int i = 0;
-            Vector<int>::iterator iter = factor.begin();
-            Vector<int>::iterator ender = factor.end();
-            tmp[i] = *iter;
-            iter++;
-            for(; iter!=ender; iter++){
-                if(*iter!=tmp[i]){
-                    i++;
-                    tmp[i] = *iter;
-                }
-            }
-            unique.reinit(i+1);
-            iter = unique.begin();
-            ender = unique.end();
-            for(i=0;iter!=ender; iter++){
-                *iter = tmp[i];
+Vector<int> mgPrecondition::unique(Vector<int> factor){
+    if(factor.size()==1){
+        return factor;
+    } else{
+        Vector<int> unique;
+        const int maxSize = 10;
+        int tmp[maxSize];
+        int i = 0;
+        Vector<int>::iterator iter = factor.begin();
+        Vector<int>::iterator ender = factor.end();
+        tmp[i] = *iter;
+        iter++;
+        for(; iter!=ender; iter++){
+            if(*iter!=tmp[i]){
                 i++;
+                tmp[i] = *iter;
             }
-            return unique;
         }
+        unique.reinit(i+1);
+        iter = unique.begin();
+        ender = unique.end();
+        for(i=0;iter!=ender; iter++){
+            *iter = tmp[i];
+            i++;
+        }
+        return unique;
     }
+}
 
 /* Returns an accumVector. This method assumes v is sorted!
         Note! The GLTmg has *ugh* Matlab indexing !
         Returnes # of Values of pos int on index i !
 */
-    Vector<int> mgPrecondition::accumVector(Vector<int> v){
-        Vector<int>::iterator iter = v.begin();
-        Vector<int>::iterator ender = v.end();
-        Vector<int> res;
-        int res_size = *(ender-1);
+Vector<int> mgPrecondition::accumVector(Vector<int> v){
+    Vector<int>::iterator iter = v.begin();
+    Vector<int>::iterator ender = v.end();
+    Vector<int> res;
+    int res_size = *(ender-1);
         res.reinit(res_size); //prolong so you can access the last element!
         res = 0;
         for(; iter!=ender; iter++){
@@ -605,30 +601,33 @@ and Vector B is percieved to be a mx1 vector!
   }
 
   /* Method that returns a double matrix with only one zero element */
-  const SparseMatrix<double> mgPrecondition::pointMatrix(SparsityPattern &sp){
-      SparseMatrix<double> M;
-      DynamicSparsityPattern dsp(1,1);
-      dsp.add(0,0);
-      dsp.compress();
-      sp.copy_from(dsp);
-      M.reinit(sp);
-      M.add(0,0,0);
-      return M;
-  }
+
+const SparseMatrix<double> mgPrecondition::pointMatrix(SparsityPattern &sp){
+  SparseMatrix<double> M;
+  DynamicSparsityPattern dsp(1,1);
+  dsp.add(0,0);
+  dsp.compress();
+  sp.copy_from(dsp);
+  M.reinit(sp);
+  M.add(0,0,0);
+  return M;
+}
+
 /* This Method performs the B = P'*BB{i}*P operation, where BB is a std::vector
     and a member of mgPrecondtion. The method returns the const matrix P */
-  const SparseMatrix<double> mgPrecondition::transMultMult(SparseMatrix<double> &P, int level, SparsityPattern &sp){
 
+const SparseMatrix<double> mgPrecondition::transMultMult(const SparseMatrix<double> &P,const SparseMatrix<double> *&b,  int level, SparsityPattern &sp){
     SparsityPattern spTemp;
-    SparseMatrix<double> B, temp;
-    DynamicSparsityPattern dspB(0);
-    spTemp.copy_from(dspB);
+    SparseMatrix<double> temp,B;
+    DynamicSparsityPattern dspTemp(0),dspB(0);
+    spTemp.copy_from(dspTemp);
     temp.reinit(spTemp);
+    b->mmult(temp, P, Vector<double>(), true);
+
     sp.copy_from(dspB);
     B.reinit(sp);
-    BB[level]->mmult(temp, P, Vector<double>(),true);
     P.Tmmult(B,temp, Vector<double>(),true);
-    return P;
+    return B;
 }
 
 /*==========================================================================================================================*/
@@ -659,12 +658,21 @@ DEAL_II_NAMESPACE_CLOSE
 /*
 
  __
- | |
+ | |    The code dump
  | |
  | |
  | |
  | |		   _____
- | |		  |		|	  |
- | | Hreinn	  |		|	  |
-_| |__________|		|_____|_________________
+ | |		  |		|	   _____
+ | | Hreinn	  |		|	  |     |
+_| |__________|		|_____|     |___________
+
+
+    // PP{i} = 0 gets overwritten in the loop :'(
+    //SparsityPattern spPoint;
+    //const SparseMatrix<double> point = pointMatrix(spPoint);
+    //PP.push_back(&point);
+
+
+
 */
