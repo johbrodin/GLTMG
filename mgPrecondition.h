@@ -61,9 +61,9 @@ public:
 	void printVector();
         void sayHi();
         //Johanna:
-        void mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const; //const to be able to be called by the const vmult function
+        void mgRecursion(Vector<double> &dst_x, const Vector<double> &src_b, int level) const; //const to be able to be called by the const vmult function
         void newResidual(Vector<double> &r,Vector<double> &x,const Vector<double> &b,SparseMatrix<double> &A) const;// )const;//
-        void presmooth_test(Vector<double> &dst, Vector<double> &src, const SparseMatrix<double> *&A);
+        void presmooth_test(Vector<double> &dst, const Vector<double> &src, const SparseMatrix<double> *&A) const;
 private:
         const SmartPointer<const SparseMatrix<double>> system_matrix;
         const SmartPointer<const Vector<double>> rhs;
@@ -130,7 +130,7 @@ private:
 /* This will be the GLTmg main function!
  * */
 void mgPrecondition::vmult(Vector<double> &dst, const Vector<double> &src) const {
-    //dst = src;
+    //dst = src; x = b
     //std::cout<<" - - - - - - Ding - - - - - - -\n"<<std::endl;
 
 
@@ -171,15 +171,17 @@ void mgPrecondition::newResidual(Vector<double> &r,Vector<double> &x,const Vecto
         double sign = -1.0;
         r*=sign;
 }
-void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &src_x, int level) const {
+void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &src_b, int level) const {
     /*% at the last level the system is solved directly
     if (n < 5)
        x = A\b;
     else*/
 
-    const SparseMatrix<double> *P;
-    P = PP[level];
-//    dst_x = presmooth();
+    //const SparseMatrix<double>* P(PP[level]);
+   // presmooth_test(dst_x,src_b,BB[0]);
+    Vector<double> r(src_b.size());
+    //newResidual(r,dst_x,src_b,*BB[0]);
+
     /*P =PP{liv};% projection matrix at the current level
     x = presmooth(A,b,x);% v1 steps of the pre-smoother
     r = b-A*x;% residual at the finer grid
@@ -206,7 +208,7 @@ void mgPrecondition::mgRecursion(Vector<double> &dst_x, const Vector<double> &sr
        x = postsmooth(A,b,x);% v2 steps of post-smoother*/
 
 }
-void mgPrecondition::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double>* &A){
+void mgPrecondition::presmooth_test(Vector<double> &dst,const Vector<double> &src,const SparseMatrix<double> *&A) const{
         A->Jacobi_step(dst,src,1);
 }
 
