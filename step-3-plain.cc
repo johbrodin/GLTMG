@@ -15,6 +15,11 @@
  *
  * Authors: Wolfgang Bangerth, 1999,
  *          Guido Kanschat, 2011
+  * ---------------------------------------------------------------------
+ * 
+ *  Modified by the G8 group UU 2017
+ * 
+ * 
  */
 #include <deal.II/grid/tria.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -40,11 +45,12 @@
 #include <iostream>
 #include <deal.II/base/tensor.h> // Tensor
 #include <vector> // This is for the std::vector
+#include <cmath>
 //#include <deal.II/multigrid/mg_matrix.h> // For the mg::Matrix ;)
-
 
 //#include "helloHeader.h"
 //#include "helloPrecondition.h"
+//#include "glt_init.h"
 #include "mgPrecondition.h"
 
 using namespace dealii;
@@ -60,6 +66,7 @@ public:
   void test_outer_product(); //Test outer product with tensors!
   void test_MG(); //Test outer product with tensors!
   void presmooth_test(Vector<double> &dst, Vector<double> &src, const SparseMatrix<double> *&A);
+  void GLT_init(); // Initialize the glt_precond. this is later put in solve();
 
 private:
   void make_grid ();
@@ -71,6 +78,22 @@ private:
   void inputFile(unsigned int size1, unsigned int size2,std::string filename);
   void inputFile_supplied(unsigned int, unsigned int,std::string,SparsityPattern &sp, SparseMatrix<double> &sm);
   void writeToFile(SparseMatrix<double> &matrix,std::string filename);
+  /* Methods needed for initializing GLT */
+  void kronProd(SparseMatrix<double> &A, SparseMatrix<double> &B,
+    SparsityPattern &sp, SparseMatrix <double> &M);
+  void kronProd_vector(Vector<double> &A, Vector<double> &B,
+    SparsityPattern &sp, SparseMatrix <double> &M);
+  void spdiags(double n,SparsityPattern &spaa, SparseMatrix <double> &aa);
+  void transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M);
+  void prol_const(double n, SparsityPattern &spP, SparseMatrix<double> &P);
+  void transMultMult(SparseMatrix<double> &P, SparseMatrix<double> &b, SparsityPattern &sp, SparseMatrix<double> &sM);
+  double vectorProd(Vector<int> v1, Vector<int> v2);
+  Vector<int> factor(const int N);
+  Vector<int> unique(Vector<int> factor);
+  Vector<int> accumVector(Vector<int> v);
+  const SparseMatrix<double> pointMatrix(SparsityPattern &sp);
+  //const SparseMatrix<double> transMultMult(const SparseMatrix<double> &P,const SparseMatrix<double> *&b, int level, SparsityPattern &sp);
+  //const SparseMatrix<double> prol_const(double n, SparsityPattern &spP);
 
   Triangulation<2>     triangulation;
   FE_Q<2>              fe;
@@ -166,7 +189,7 @@ void Step3::solve ()
   SolverControl           solver_control (1000, 1e-12);
   SolverCG<>              solver (solver_control);
   solver.solve (system_matrix, solution, system_rhs,
-    mgPrecondition(system_matrix,system_rhs));
+    PreconditionIdentity());
   
 }
 void Step3::output_results () const
@@ -284,8 +307,77 @@ void Step3::test_run(){
   y = 1;
   Vector<double> b(N);
   AFin.vmult(b,y);  // Have to reinit b...
-  mgPrecondition mg(AFin,b);
- 
+  //mgPrecondition mg(AFin,b);
+  //mg.testPP();
+}
+
+/* This method is to test initializing the GLT.
+  Its content will later be included in solve() 
+
+  Note: We should remove system_matrix in mgPrecond and
+  only work with BB, that way we halve the memory usage.
+
+  */
+void Step3::GLT_init(){
+
+  int size = 125;
+  int ref = 2;
+
+  SparsityPattern *spP;
+  SparsityPattern *spB;
+  spP = new SparsityPattern [ref];
+  spB = new SparsityPattern [ref+1];
+
+  SparseMatrix<double> *BB;
+  SparseMatrix<double> *PP;
+  PP = new SparseMatrix<double> [ref];
+  BB = new SparseMatrix<double> [ref+1]; // BB[0] = AFin
+  inputFile_supplied(size,size,"AFin.txt",spB[0],BB[0]);
+
+  Vector<double> y;
+  y.reinit(size);
+  y = 1;
+  Vector<double> b(size);
+  BB[0].vmult(b,y);  // Have to reinit b...
+
+  int N = BB[0].m(); // = size
+  Vector<int> NN = factor(N);
+  Vector<int> nu = unique(NN);
+  Vector<int> reps = accumVector(NN);
+  double n = vectorProd(reps,nu);
+  int level = 0;    
+  //BB{i} = AFin;
+  //PP{i} = 0;
+  double n1 = n;
+
+  while(n1>=3){
+      // P = (1/n1)*prol([. . .][ . . .])
+      //PP{i} = P
+    prol_const(n1,spP[level],PP[level]);
+    // B = P'*BB{i}*P
+    // BB{i+1} = B
+    transMultMult(PP[level],BB[level], spB[level+1], BB[level+1]);
+    
+    n1 = (n1+1)/2;
+    level++;
+  }
+  /*
+  std::cout<<" PP[0] mxn : "<<PP[0].m()<<" "<<PP[0].n()<<std::endl;
+  std::cout<<" PP[1] mxn : "<<PP[1].m()<<" "<<PP[1].n()<<std::endl;
+  std::cout<<" BB[0] mxn : "<<BB[0].m()<<" "<<BB[0].n()<<std::endl;
+  std::cout<<" BB[1] mxn : "<<BB[1].m()<<" "<<BB[1].n()<<std::endl;
+  std::cout<<" BB[2] mxn : "<<BB[2].m()<<" "<<BB[2].n()<<std::endl;
+  */
+
+  /*
+  Solve . . .
+  */
+
+  // Freeing memory allocation  //Problem med att free:a BB när den används i mgPre!
+  //delete[] PP;
+  //delete[] BB;
+  //delete[] spP;
+  //delete[] spB
 }
 
 /*======================================== Johanna makes tests ======================================================*/
@@ -315,7 +407,7 @@ void Step3::test_MG(){
   b[1]=2;
   b[2]=3;
 
-  mgPrecondition mg(AFin,b);
+  //mgPrecondition mg(AFin,b);
 
   //const
   //SparseMatrix<double> A;
@@ -363,11 +455,418 @@ void Step3::test_MG(){
 
 void Step3::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double> *&A){
 //    void Step3::presmooth_test(Vector<double> &dst,Vector<double> &src,const SparseMatrix<double>* &A){
-        A->Jacobi_step(dst,src,1);
+  A->Jacobi_step(dst,src,1);
 }
 
+/*========================================== Methods added for GLT_init ==============================================================================*/
 
-/*========================================================================================================================*/
+/* Vector A is percieved to be a 1xn vector
+and Vector B is percieved to be a mx1 vector!
+        resulting Matrix M is a mxn matrix
+*/
+void Step3::kronProd_vector(Vector<double> &A, Vector<double> &B,
+  SparsityPattern &sp, SparseMatrix <double> &M){
+  const int m = B.size();
+  const int n = A.size();
+  DynamicSparsityPattern dsp(m,n);
+  Vector<double>::iterator itA = A.begin();
+  Vector<double>::iterator itB = B.begin();
+  Vector<double>::iterator endA = A.end();
+  Vector<double>::iterator endB = B.end();
+  int i=0,j=0;
+  double val,valA,valB;
+  for(; itA!=endA; itA++){
+    for(; itB!=endB; itB++){
+      dsp.add(j,i);
+      j++;
+    }
+    itB = B.begin();
+    j=0;
+    i++;
+  }
+  dsp.compress();
+  sp.copy_from(dsp);
+  M.reinit(sp);
+  itA = A.begin();
+  i=0; j=0;
+  for(; itA!=endA; itA++){
+    valA = *itA;
+    for(; itB!=endB; itB++){
+      valB = *itB;
+      val = valA*valB;
+      M.add(j,i,val);
+      j++;
+    }
+    itB = B.begin();
+    j=0;
+    i++;
+  }
+}
+
+/*
+        This is the kronecker product of 2 sparse matrices
+*/
+void Step3::kronProd(SparseMatrix<double> &A, SparseMatrix<double> &B,
+  SparsityPattern &sp, SparseMatrix <double> &M){
+  const int nA = A.n(); //nCols
+  const int nB = B.n();
+  const int mA = A.m(); //nRows
+  const int mB = B.m();
+  const int n = nA*nB;
+  const int m = mA*mB;
+  DynamicSparsityPattern dsp(m,n);
+  SparseMatrix<double>::iterator itA = A.begin();
+  SparseMatrix<double>::iterator endA = A.end();
+  SparseMatrix<double>::iterator itB = B.begin(); // I fixed it ;P
+  SparseMatrix<double>::iterator endB = B.end();
+  int rowA, colA, rowB, colB;
+  int i,j;
+  double val,valA,valB;
+  for(; itA!=endA; itA++){
+    rowA = itA->row();
+    colA = itA-> column();
+    for(; itB!=endB; itB++){
+      rowB = itB->row();
+      colB = itB-> column();
+      i = rowA*mB+rowB;
+      j = colA*nB+colB;
+      dsp.add(i,j);
+    }
+    itB = B.begin();
+  }
+  dsp.compress();
+      // Should we put a sp.clear?
+  sp.copy_from(dsp);
+  M.reinit(sp);
+  itA = A.begin();
+  for(; itA!=endA; itA++){
+    rowA = itA->row();
+    colA = itA-> column();
+    valA = itA->value();
+    for(; itB!=endB; itB++){
+      rowB = itB->row();
+      colB = itB-> column();
+      valB = itB->value();
+      i = rowA*mB+rowB;
+      j = colA*nB+colB;
+      val = valA*valB;
+      M.add(i,j,val);
+    }
+    itB = B.begin();
+  }
+}
+/* Here we implement the prol([2 1 1],[0 -1 1],n)
+        dd = [0 -1 1]
+        PP = [2 1 1]
+        performs the operation:
+        aa = spdiags(kron(PP,one(n,1),dd,n,n));
+*/
+void Step3::spdiags(double n,SparsityPattern &spaa, SparseMatrix <double> &aa){
+  Vector<double> dd;
+  dd.reinit(3);
+  dd[0] = 0; dd[1] = -1; dd[2] = 1;
+  Vector<double> PP;
+  PP.reinit(3);
+  PP[0] = 2; PP[1] = 1; PP[2] = 1; // Obs!!!
+  int N = (int)n;
+  /* Make the sm1 = kron(PP,ones(n,1)) matrix! :D */
+  Vector<double> ones;
+  ones.reinit(N);
+  ones = 1;
+  SparsityPattern sp1;
+  SparseMatrix<double> sm1;
+  kronProd_vector(PP,ones,sp1,sm1);
+        /* I am hardcoding the diagonals. i.e. I dont use the dd matrix. Sorry ;)*/
+  DynamicSparsityPattern dsp(N,N);
+        // ! ! ! ! !  Possible problem if the matrix is shorter than N !! ! ! !
+  for(int i=0; i<N-1; i++){
+    dsp.add(i,i);
+    dsp.add(i+1,i);
+    dsp.add(i,i+1);
+  }
+  dsp.add(N-1,N-1);
+  dsp.compress();
+  spaa.copy_from(dsp);
+  aa.reinit(spaa);
+  for(int i=0; i<N-1; i++){
+    aa.add(i,i,sm1(i,0));   // Column 0 on diag 0
+    aa.add(i+1,i,sm1(i+1,1)); // Column 1 on diag -1
+    aa.add(i,i+1,sm1(i,2));   // Column 2 on diag 1
+  }
+  aa.add(N-1,N-1,sm1(N-1,0));
+}
+
+/*  Here we make a transpose of matrix A which can be any type of a matrix
+        output sp and M */
+void Step3::transp(SparseMatrix<double> &A, SparsityPattern &sp, SparseMatrix<double> &M){
+  const int n = A.m();
+  const int m = A.n();
+  DynamicSparsityPattern dsp(m,n);
+  SparseMatrix<double>::iterator itA = A.begin();
+  SparseMatrix<double>::iterator endA = A.end();
+  double value;
+  int rowM=0,colM=0;
+  for(;itA!=endA;++itA){
+    rowM=itA->column();
+    colM=itA->row();
+    dsp.add(rowM,colM);
+  }
+  dsp.compress();
+  sp.copy_from(dsp);
+  M.reinit(sp);
+  itA = A.begin();
+  for(;itA!=endA;itA++){
+    rowM=itA->column();
+    colM=itA->row();
+    value = itA->value();
+    M.add(rowM,colM,value);
+  }
+}
+
+/* This method performs the prod(nu.^(resp(nu)./3))
+        action given in the GLTmg*/
+double Step3::vectorProd(Vector<int> reps, Vector<int> nu){
+  double n = 1;
+    // the reps(nu) action
+  Vector<double> repsNu;  //Used for development
+  repsNu.reinit(nu.size());
+  Vector<int>::iterator nu_iter = nu.begin();
+  Vector<int>::iterator nu_ender = nu.end();
+  int i =  0;
+  for(; nu_iter!=nu_ender; nu_iter++){
+    repsNu(i) = (double)(reps(*nu_iter-1))/3;
+    n = n*pow(nu(i),repsNu(i));
+    i++;
+  }
+  return n;
+}
+
+/* Return a vector containing the primenumbers of N
+        Might Implement Sieve at a later point    */
+Vector<int> Step3::factor(int N){
+  int index = 0;
+  const int maxSize = 10;
+  int factors[maxSize];
+  while(N%2==0){
+                //Add 2
+    factors[index] = 2;
+    index++;
+    N=N/2;
+  }
+  for(int i=3; i<=sqrt(N); i=i+2){
+    while(N%i==0){
+                        //add i
+      factors[index] = i;
+      index++;
+      N=N/i;
+    }
+  }
+  if(N>2){
+                //add (N)
+    factors[index] = N;
+    index++;
+  }
+  Vector<int> result;
+  result.reinit(index);
+  Vector<int>::iterator iter = result.begin();
+  Vector<int>::iterator ender = result.end();
+  int i = 0;
+  for(; iter!=ender; iter++){
+    *iter = factors[i];
+    i++;
+  }
+  return result;
+}
+
+/* removes extra numbers from factors */
+Vector<int> Step3::unique(Vector<int> factor){
+  if(factor.size()==1){
+    return factor;
+  } else{
+    Vector<int> unique;
+    const int maxSize = 10;
+    int tmp[maxSize];
+    int i = 0;
+    Vector<int>::iterator iter = factor.begin();
+    Vector<int>::iterator ender = factor.end();
+    tmp[i] = *iter;
+    iter++;
+    for(; iter!=ender; iter++){
+      if(*iter!=tmp[i]){
+        i++;
+        tmp[i] = *iter;
+      }
+    }
+    unique.reinit(i+1);
+    iter = unique.begin();
+    ender = unique.end();
+    for(i=0;iter!=ender; iter++){
+      *iter = tmp[i];
+      i++;
+    }
+    return unique;
+  }
+}
+
+/* Returns an accumVector. This method assumes v is sorted!
+        Note! The GLTmg has *ugh* Matlab indexing !
+        Returnes # of Values of pos int on index i !
+*/
+Vector<int> Step3::accumVector(Vector<int> v){
+  Vector<int>::iterator iter = v.begin();
+  Vector<int>::iterator ender = v.end();
+  Vector<int> res;
+  int res_size = *(ender-1);
+  res.reinit(res_size); //prolong so you can access the last element!
+  res = 0;
+  for(; iter!=ender; iter++){
+    res(*iter-1)++;
+  }
+  return res;
+}
+
+/* This Method performs the B = P'*BB{i}*P operation, where BB is a std::vector
+    and a member of mgPrecondtion. The method returns the const matrix P */
+void Step3::transMultMult(SparseMatrix<double> &P, SparseMatrix<double> &b, SparsityPattern &sp,
+  SparseMatrix<double> &sm){
+  SparsityPattern spTemp;
+  SparseMatrix<double> temp;
+  
+  DynamicSparsityPattern dspTemp(0),dspB(0);
+  spTemp.copy_from(dspTemp);
+  temp.reinit(spTemp);
+
+  b.mmult(temp, P, Vector<double>(), true);
+
+  sp.copy_from(dspB);
+  sm.reinit(sp);
+  P.Tmmult(sm,temp, Vector<double>(),true);
+}
+
+/* This is an implementation of the algorithm
+        (1/n)*prol([2 1 1], [0 -1 1],n)
+        given in the gltmg_test matlab code
+
+        This code is memory-ineffective and should include destructors
+
+        Method tested and seems to work.... Finaly....
+
+  We change the prol method such that it can return a const SparseMatrix :)
+ */
+void Step3::prol_const(double n, SparsityPattern &spP,SparseMatrix<double> &P){
+  // aa = spdiags(kron(PP,ones),dd,n,n)
+  SparsityPattern spaa;
+  SparseMatrix<double> aa;
+  spdiags(n,spaa,aa);
+  // smP = kron(aa,kron(aa,aa))
+  SparsityPattern spTemp;
+  SparseMatrix<double> smTemp;
+  kronProd(aa,aa,spTemp,smTemp);
+  SparsityPattern spP2;
+  SparseMatrix<double> smP;
+  kronProd(aa,smTemp,spP2,smP);
+  // Create smH = speye(n) then remove every other row
+  // smH = smH(1:2:n,:)
+  SparsityPattern spH2;
+  SparseMatrix<double> smH;
+  int N1 = (int)n;
+  int N2 = N1/2+N1%2;
+  DynamicSparsityPattern dspH(N2,N1);
+  for(int i=0; i<N2; i++){
+    dspH.add(i,2*i);
+  }
+  dspH.compress();
+  spH2.copy_from(dspH);
+  smH.reinit(spH2);
+  for(int i=0; i<N2; i++){
+    smH.add(i,2*i,1);
+  }
+  // H = kron(smH,kron(smH,smH))
+  SparsityPattern sp_dummyH;
+  SparseMatrix<double> dummyH; 
+  SparsityPattern spH;
+  SparseMatrix<double> H;
+  kronProd(smH,smH,sp_dummyH,dummyH);
+  kronProd(smH,dummyH,spH,H);
+  // P = smP*H'; P = (1/n)*P
+  SparsityPattern spTranspH;
+  SparseMatrix<double> transpH;
+  //SparseMatrix<double> P;
+  transp(H,spTranspH,transpH);
+  DynamicSparsityPattern dspP(0);
+  spP.copy_from(dspP);
+  P.reinit(spP);
+  smP.mmult(P,transpH,Vector<double>(),true);
+  //P = (1/n).P
+  P*=(1/n);
+}
+
+/* Dummy version 
+const SparseMatrix<double> Step3::prol_const(double n, SparsityPattern &spP){
+  // aa = spdiags(kron(PP,ones),dd,n,n)
+  SparsityPattern spaa;
+  SparseMatrix<double> aa;
+  spdiags(n,spaa,aa);
+  // smP = kron(aa,kron(aa,aa))
+  SparsityPattern spTemp;
+  SparseMatrix<double> smTemp;
+  kronProd(aa,aa,spTemp,smTemp);
+  SparsityPattern spP2;
+  SparseMatrix<double> smP;
+  kronProd(aa,smTemp,spP2,smP);
+  // Create smH = speye(n) then remove every other row
+  //  smH = smH(1:2:n,:)
+  SparsityPattern spH2;
+  SparseMatrix<double> smH;
+  int N1 = (int)n;
+  int N2 = N1/2+N1%2;
+  DynamicSparsityPattern dspH(N2,N1);
+  for(int i=0; i<N2; i++){
+    dspH.add(i,2*i);
+  }
+  dspH.compress();
+  spH2.copy_from(dspH);
+  smH.reinit(spH2);
+  for(int i=0; i<N2; i++){
+    smH.add(i,2*i,1);
+  }
+  // H = kron(smH,kron(smH,smH))
+  SparsityPattern sp_dummyH;
+  SparseMatrix<double> dummyH; 
+  SparsityPattern spH;
+  SparseMatrix<double> H;
+  kronProd(smH,smH,sp_dummyH,dummyH);
+  kronProd(smH,dummyH,spH,H);
+  // P = smP*H'; P = (1/n)*P
+  SparsityPattern spTranspH;
+  SparseMatrix<double> transpH;
+  SparseMatrix<double> P;
+  transp(H,spTranspH,transpH);
+  DynamicSparsityPattern dspP(0);
+  spP.copy_from(dspP);
+  P.reinit(spP);
+  smP.mmult(P,transpH,Vector<double>(),true);
+  //P = (1/n).P
+  P*=(1/n);
+
+  return P;
+}
+
+*/
+/* ============================================ These methods have been ommited ============================================ */
+
+/* Method that returns a double matrix with only one zero element */
+const SparseMatrix<double> Step3::pointMatrix(SparsityPattern &sp){
+  SparseMatrix<double> M;
+  DynamicSparsityPattern dsp(1,1);
+  dsp.add(0,0);
+  dsp.compress();
+  sp.copy_from(dsp);
+  M.reinit(sp);
+  M.add(0,0,0);
+  return M;
+}
+/*=====================================================================================================================================================*/
 
 int main ()
 {
@@ -376,7 +875,7 @@ int main ()
   //laplace_problem.run ();
   Step3 test;
   //test.run();
-  test.test_run();
+  test.GLT_init();
   //test.test_MG();
 
   return 0;
